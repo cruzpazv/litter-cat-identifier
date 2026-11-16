@@ -1,5 +1,9 @@
 # Litter Cat Identifier
 
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5?style=for-the-badge)](https://hacs.xyz/docs/faq/custom_repositories)
+[![Checks](https://img.shields.io/github/actions/workflow/status/cruzpazv/litter-cat-identifier/validate.yml?branch=main&style=for-the-badge&label=checks)](https://github.com/cruzpazv/litter-cat-identifier/actions/workflows/validate.yml)
+[![Release](https://img.shields.io/github/v/release/cruzpazv/litter-cat-identifier?style=for-the-badge)](https://github.com/cruzpazv/litter-cat-identifier/releases)
+
 Home Assistant integration that tells your cats apart by weight on any automatic litter box that reports the cat's weight (Tuya / TACo, Petkit, Litter-Robot, CATLINK…).
 
 - Names each visit after the right cat, or logs it as **unidentified**
