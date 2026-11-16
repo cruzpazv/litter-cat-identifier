@@ -11,8 +11,9 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .const import ATTR_CAT, ATTR_CONFIG_ENTRY_ID, DOMAIN, SERVICE_REASSIGN
+from .const import ATTR_CAT, ATTR_CONFIG_ENTRY_ID, CONF_CAT_OPTIONS, CONF_PICTURE, DOMAIN, SERVICE_REASSIGN
 from .coordinator import LitterCoordinator
+from .pictures import async_delete_pictures, async_register_static_path
 
 PLATFORMS = [Platform.SENSOR, Platform.EVENT]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -47,6 +48,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             raise ServiceValidationError(str(err)) from err
 
     hass.services.async_register(DOMAIN, SERVICE_REASSIGN, _reassign, schema=REASSIGN_SCHEMA)
+    await async_register_static_path(hass)
     return True
 
 
@@ -69,3 +71,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: LitterConfigEntry) -> b
 
 async def _async_reload(hass: HomeAssistant, entry: LitterConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: LitterConfigEntry) -> None:
+    """Delete the photos this entry stored."""
+    pictures = [o.get(CONF_PICTURE) for o in entry.options.get(CONF_CAT_OPTIONS, {}).values()]
+    await async_delete_pictures(hass, pictures)

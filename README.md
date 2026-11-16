@@ -1,8 +1,17 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/cruzpazv/litter-cat-identifier/main/custom_components/litter_cat_identifier/brand/icon@2x.png" alt="Litter Cat Identifier" width="160">
+</p>
+
 # Litter Cat Identifier
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5?style=for-the-badge)](https://hacs.xyz/docs/faq/custom_repositories)
-[![Checks](https://img.shields.io/github/actions/workflow/status/cruzpazv/litter-cat-identifier/validate.yml?branch=main&style=for-the-badge&label=checks)](https://github.com/cruzpazv/litter-cat-identifier/actions/workflows/validate.yml)
-[![Release](https://img.shields.io/github/v/release/cruzpazv/litter-cat-identifier?style=for-the-badge)](https://github.com/cruzpazv/litter-cat-identifier/releases)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange)](https://hacs.xyz/docs/faq/custom_repositories)
+[![Release](https://img.shields.io/github/v/release/cruzpazv/litter-cat-identifier?label=release)](https://github.com/cruzpazv/litter-cat-identifier/releases)
+[![Hassfest](https://img.shields.io/github/actions/workflow/status/cruzpazv/litter-cat-identifier/hassfest.yml?branch=main&label=Hassfest&logo=github)](https://github.com/cruzpazv/litter-cat-identifier/actions/workflows/hassfest.yml)
+[![HACS validation](https://img.shields.io/github/actions/workflow/status/cruzpazv/litter-cat-identifier/hacs.yml?branch=main&label=HACS%20validation&logo=github)](https://github.com/cruzpazv/litter-cat-identifier/actions/workflows/hacs.yml)
+[![License](https://img.shields.io/github/license/cruzpazv/litter-cat-identifier?color=yellow)](LICENSE)
+[![Installs](https://img.shields.io/badge/dynamic/json?label=Installs&color=olive&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.litter_cat_identifier.total)](https://analytics.home-assistant.io/)
+[![Version](https://img.shields.io/badge/dynamic/json?label=VERSION&color=blue&url=https%3A%2F%2Fraw.githubusercontent.com%2Fcruzpazv%2Flitter-cat-identifier%2Fmain%2Fcustom_components%2Flitter_cat_identifier%2Fmanifest.json&query=%24.version)](custom_components/litter_cat_identifier/manifest.json)
+[![Home Assistant](https://img.shields.io/badge/dynamic/json?label=HOME%20ASSISTANT&color=41BDF5&prefix=%3E%3D&url=https%3A%2F%2Fraw.githubusercontent.com%2Fcruzpazv%2Flitter-cat-identifier%2Fmain%2Fhacs.json&query=%24.homeassistant)](https://www.home-assistant.io/)
 
 Home Assistant integration that tells your cats apart by weight on any automatic litter box that reports the cat's weight (Tuya / TACo, Petkit, Litter-Robot, CATLINK…).
 
@@ -45,14 +54,14 @@ Copy `custom_components/litter_cat_identifier` into your `config/custom_componen
 Settings → Devices & services → Add integration → **Litter Cat Identifier**
 
 1. Name + sensors from your litter box: cat weight (required), visit counter (recommended), visit duration (optional).
-2. Add each cat: name, approximate weight and (optionally) a photo.
+2. Add each cat: name, approximate weight and (optionally) a photo picked or uploaded from Media.
 
 **Options** (⚙ on the integration):
 
 - *General settings & notifications*: tolerance, learning rate, minimum weight, notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits.
 - *Cat: photo & notifications*: photo, notify every visit, alert after N hours without a visit (0 = off; one alert until the cat visits again).
 
-**Photos**: put the image in `config/www/cats/luna.jpg` (File editor / Samba add-on) and use `/local/cats/luna.jpg`. Any `https://` URL works too.
+**Photos**: in *Cat: photo & notifications*, tap **Photo** to pick an image from Media or upload one straight from your phone or computer. It's cropped square, resized to 512 px and stored by the integration — no File editor, no paths. Advanced: you can still type a `/local/...` path or an `https://` URL instead.
 
 ## Entities
 

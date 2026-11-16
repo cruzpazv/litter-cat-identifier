@@ -28,6 +28,8 @@ WEIGHT_FRESHNESS = 600  # s, how old a cached weight may be in counter mode
 INACTIVITY_CHECK = 300  # s
 
 CONF_PICTURE = "picture"
+CONF_PICTURE_MEDIA = "picture_media"
+CONF_REMOVE_PICTURE = "remove_picture"
 CONF_CAT = "cat"
 CONF_CAT_OPTIONS = "cat_options"
 CONF_NOTIFY_TARGETS = "notify_targets"

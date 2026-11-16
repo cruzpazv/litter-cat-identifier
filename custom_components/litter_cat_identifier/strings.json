@@ -18,16 +18,20 @@
           "name": "Name",
           "weight": "Approximate weight",
           "add_another": "Add another cat after this one",
-          "picture": "Photo (optional)"
+          "picture": "…or a URL / path (advanced)",
+          "picture_media": "Photo"
         },
         "data_description": {
-          "picture": "Path or URL, e.g. /local/cats/luna.jpg (file in config/www/cats/)."
+          "picture": "e.g. /local/cats/luna.jpg or https://…",
+          "picture_media": "Pick a photo from Media or upload one from your phone/computer. It's cropped square and resized automatically."
         }
       }
     },
     "error": {
       "invalid_name": "Name cannot be empty.",
-      "duplicate_name": "That name is already used."
+      "duplicate_name": "That name is already used.",
+      "invalid_image": "That file isn't an image Home Assistant can read.",
+      "not_local": "That media source can't be used; pick or upload the photo in Image upload or My media."
     },
     "abort": {
       "already_configured": "This weight sensor is already set up."
@@ -67,15 +71,22 @@
       "cat_edit": {
         "title": "{cat}",
         "data": {
-          "picture": "Photo (optional)",
+          "picture": "…or a URL / path (advanced)",
           "notify_visit": "Notify every visit",
-          "alert_hours": "Alert if no visit for"
+          "alert_hours": "Alert if no visit for",
+          "picture_media": "Photo",
+          "remove_picture": "Remove photo"
         },
         "data_description": {
-          "picture": "Path or URL, e.g. /local/cats/luna.jpg (file in config/www/cats/).",
-          "alert_hours": "Hours without a visit before alerting. 0 = off."
+          "picture": "e.g. /local/cats/luna.jpg or https://…",
+          "alert_hours": "Hours without a visit before alerting. 0 = off.",
+          "picture_media": "Pick a photo from Media or upload one from your phone/computer. It's cropped square and resized automatically."
         }
       }
+    },
+    "error": {
+      "invalid_image": "That file isn't an image Home Assistant can read.",
+      "not_local": "That media source can't be used; pick or upload the photo in Image upload or My media."
     }
   },
   "entity": {

@@ -18,6 +18,8 @@ from homeassistant.helpers.selector import (
     NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
+    MediaSelector,
+    MediaSelectorConfig,
     SelectSelectorMode,
     TextSelector,
 )
@@ -36,6 +38,8 @@ from .const import (
     CONF_NOTIFY_UNIDENTIFIED,
     CONF_NOTIFY_VISIT,
     CONF_PICTURE,
+    CONF_PICTURE_MEDIA,
+    CONF_REMOVE_PICTURE,
     CONF_SMOOTHING,
     CONF_TOLERANCE,
     CONF_VISIT_ENTITY,
@@ -47,8 +51,19 @@ from .const import (
     DOMAIN,
     UNIDENTIFIED,
 )
+from .pictures import PictureError, async_delete_pictures, async_store_picture
 
 SENSOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
+PHOTO = MediaSelector(MediaSelectorConfig(accept=["image/*"]))
+
+
+async def _resolve_picture(hass, user_input: dict[str, Any], current: str | None) -> str | None:
+    """Media pick > typed URL/path > keep current. Raises PictureError."""
+    media = user_input.get(CONF_PICTURE_MEDIA)
+    if media and media.get("media_content_id"):
+        return await async_store_picture(hass, media["media_content_id"])
+    typed = _picture(user_input.get(CONF_PICTURE))
+    return typed if typed is not None else current
 
 
 def _kg(min_v: float, max_v: float, step: float) -> NumberSelector:
@@ -97,8 +112,13 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
             elif name.casefold() in taken:
                 errors[CONF_CAT_NAME] = "duplicate_name"
             else:
+                try:
+                    picture = await _resolve_picture(self.hass, user_input, None)
+                except PictureError as err:
+                    errors[CONF_PICTURE_MEDIA] = str(err)
+            if not errors:
                 self._cats.append({CONF_CAT_NAME: name, CONF_CAT_WEIGHT: float(user_input[CONF_CAT_WEIGHT])})
-                self._cat_options[name] = {CONF_PICTURE: _picture(user_input.get(CONF_PICTURE))}
+                self._cat_options[name] = {CONF_PICTURE: picture}
                 if user_input.get(CONF_ADD_ANOTHER):
                     return await self.async_step_cat()
                 return self.async_create_entry(
@@ -116,6 +136,7 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_CAT_NAME): TextSelector(),
                 vol.Required(CONF_CAT_WEIGHT): _kg(0.5, 15, 0.05),
+                vol.Optional(CONF_PICTURE_MEDIA): PHOTO,
                 vol.Optional(CONF_PICTURE): TextSelector(),
                 vol.Optional(CONF_ADD_ANOTHER, default=len(self._cats) == 0): BooleanSelector(),
             }
@@ -184,17 +205,35 @@ class LitterCatOptionsFlow(OptionsFlow):
         cat_opts = dict(opts.get(CONF_CAT_OPTIONS, {}))
         current = cat_opts.get(self._cat, {})
 
+        errors: dict[str, str] = {}
         if user_input is not None:
-            cat_opts[self._cat] = {
-                CONF_PICTURE: _picture(user_input.get(CONF_PICTURE)),
-                CONF_NOTIFY_VISIT: user_input[CONF_NOTIFY_VISIT],
-                CONF_ALERT_HOURS: float(user_input[CONF_ALERT_HOURS]),
-            }
-            return self.async_create_entry(data={**opts, CONF_CAT_OPTIONS: cat_opts})
+            old = current.get(CONF_PICTURE)
+            try:
+                if user_input.get(CONF_REMOVE_PICTURE):
+                    picture = None
+                else:
+                    # an emptied URL field means "no typed URL", not "remove"
+                    typed = _picture(user_input.get(CONF_PICTURE))
+                    picture = await _resolve_picture(
+                        self.hass, user_input, typed if typed is not None else old
+                    )
+            except PictureError as err:
+                errors[CONF_PICTURE_MEDIA] = str(err)
+            if not errors:
+                if picture != old:
+                    await async_delete_pictures(self.hass, [old])
+                cat_opts[self._cat] = {
+                    CONF_PICTURE: picture,
+                    CONF_NOTIFY_VISIT: user_input[CONF_NOTIFY_VISIT],
+                    CONF_ALERT_HOURS: float(user_input[CONF_ALERT_HOURS]),
+                }
+                return self.async_create_entry(data={**opts, CONF_CAT_OPTIONS: cat_opts})
 
         schema = vol.Schema(
             {
+                vol.Optional(CONF_PICTURE_MEDIA): PHOTO,
                 vol.Optional(CONF_PICTURE, description={"suggested_value": current.get(CONF_PICTURE)}): TextSelector(),
+                vol.Optional(CONF_REMOVE_PICTURE, default=False): BooleanSelector(),
                 vol.Required(CONF_NOTIFY_VISIT, default=current.get(CONF_NOTIFY_VISIT, False)): BooleanSelector(),
                 vol.Required(CONF_ALERT_HOURS, default=current.get(CONF_ALERT_HOURS, 0)): NumberSelector(
                     NumberSelectorConfig(min=0, max=168, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="h")
@@ -202,5 +241,5 @@ class LitterCatOptionsFlow(OptionsFlow):
             }
         )
         return self.async_show_form(
-            step_id="cat_edit", data_schema=schema, description_placeholders={"cat": self._cat}
+            step_id="cat_edit", data_schema=schema, errors=errors, description_placeholders={"cat": self._cat}
         )
