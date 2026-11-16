@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Arenero",
+        "description": "Elige los sensores que expone la integración de tu arenero. El contador de visitas es opcional pero muy recomendable: detecta todas las visitas, aunque dos seguidas den el mismo peso.",
+        "data": {
+          "name": "Nombre",
+          "weight_entity": "Sensor de peso del gato",
+          "visit_entity": "Contador de visitas (recomendado)",
+          "duration_entity": "Sensor de duración de la visita"
+        }
+      },
+      "cat": {
+        "title": "Gato {count}",
+        "description": "Nombre y peso aproximado. El peso es solo un punto de partida: se aprende y actualiza en cada visita identificada.",
+        "data": {
+          "name": "Nombre",
+          "weight": "Peso aproximado",
+          "add_another": "Añadir otro gato después de este"
+        }
+      }
+    },
+    "error": {
+      "invalid_name": "El nombre no puede estar vacío.",
+      "duplicate_name": "Ese nombre ya está en uso."
+    },
+    "abort": {
+      "already_configured": "Este sensor de peso ya está configurado."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajustes de identificación",
+        "data": {
+          "tolerance": "Diferencia máxima con el peso de un gato",
+          "smoothing": "Velocidad de aprendizaje",
+          "min_weight": "Ignorar lecturas por debajo de"
+        },
+        "data_description": {
+          "tolerance": "Las lecturas más alejadas que esto de todos los gatos se registran como no identificadas.",
+          "smoothing": "Cuánto mueve cada visita el peso aprendido (0 = nunca, 1 = salta a la última lectura).",
+          "min_weight": "Filtra lecturas con el arenero vacío y ruido."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_visit": {
+        "name": "Última visita",
+        "state": { "unidentified": "No identificado" }
+      },
+      "unidentified_today": { "name": "Visitas no identificadas hoy" },
+      "cat_weight": { "name": "Peso de {cat}" },
+      "cat_visits_today": { "name": "Visitas de {cat} hoy" },
+      "cat_last_visit": { "name": "Última visita de {cat}" }
+    },
+    "event": {
+      "visit": { "name": "Visita" }
+    }
+  },
+  "services": {
+    "reassign_last_visit": {
+      "name": "Reasignar última visita",
+      "description": "Corrige la visita más reciente cuando se identificó el gato equivocado.",
+      "fields": {
+        "cat": { "name": "Gato", "description": "Nombre del gato que realmente entró." },
+        "config_entry_id": { "name": "Arenero", "description": "Solo necesario con más de un arenero." }
+      }
+    }
+  }
+}

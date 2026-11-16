@@ -1,0 +1,13 @@
+{
+  "domain": "litter_cat_identifier",
+  "name": "Litter Cat Identifier",
+  "codeowners": ["@cruzpazv"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/cruzpazv/litter-cat-identifier",
+  "integration_type": "helper",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/cruzpazv/litter-cat-identifier/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,12 @@
+reassign_last_visit:
+  fields:
+    cat:
+      required: true
+      example: "Luna"
+      selector:
+        text:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: litter_cat_identifier

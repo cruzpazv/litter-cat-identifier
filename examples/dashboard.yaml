@@ -1,0 +1,61 @@
+# Example section for a "sections" dashboard.
+# Entity IDs depend on your litter box name, cat names and HA language:
+# check Settings → Entities → filter "Litter Cat Identifier" and adjust.
+# Here: litter box "TACo", cats "Luna" and "Simba", HA in English.
+
+type: grid
+cards:
+  - type: heading
+    heading: TACo
+    icon: mdi:cat
+    badges:
+      - type: entity
+        entity: sensor.taco_unidentified_visits_today
+
+  # One card per cat: visits today · last visit · learned weight
+  - type: custom:mushroom-template-card
+    entity: sensor.taco_luna_weight
+    primary: Luna
+    secondary: >-
+      {{ states('sensor.taco_luna_visits_today') }} visits today ·
+      {% set t = states('sensor.taco_luna_last_visit') %}
+      {{ 'last ' ~ relative_time(as_datetime(t)) ~ ' ago' if t not in ['unknown','unavailable'] else 'no visits yet' }}
+    icon: mdi:cat
+    icon_color: orange
+    badge_icon: mdi:scale
+    grid_options:
+      columns: 6
+  - type: custom:mushroom-template-card
+    entity: sensor.taco_simba_weight
+    primary: Simba
+    secondary: >-
+      {{ states('sensor.taco_simba_visits_today') }} visits today ·
+      {% set t = states('sensor.taco_simba_last_visit') %}
+      {{ 'last ' ~ relative_time(as_datetime(t)) ~ ' ago' if t not in ['unknown','unavailable'] else 'no visits yet' }}
+    icon: mdi:cat
+    icon_color: grey
+    grid_options:
+      columns: 6
+
+  # Visit log (last 10)
+  - type: markdown
+    title: Recent visits
+    content: |
+      | Time | Cat | Weight | Duration |
+      |:--|:--|--:|--:|
+      {% for v in (state_attr('sensor.taco_last_visit', 'history') or [])[:10] -%}
+      | {{ as_timestamp(v.time) | timestamp_custom('%d/%m %H:%M') }} | {{ 'Unidentified' if v.cat == 'unidentified' else v.cat }} | {{ '%.2f kg' % v.weight if v.weight is not none else '–' }} | {{ '%d s' % v.duration if v.duration is not none else '–' }} |
+      {% endfor %}
+
+  # Weight trend per cat (long-term statistics)
+  - type: statistics-graph
+    title: Weight (30 days)
+    days_to_show: 30
+    period: day
+    stat_types: [mean]
+    chart_type: line
+    entities:
+      - entity: sensor.taco_luna_weight
+        name: Luna
+      - entity: sensor.taco_simba_weight
+        name: Simba

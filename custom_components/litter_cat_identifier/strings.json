@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Litter box",
+        "description": "Pick the sensors your litter box integration exposes. The visit counter is optional but strongly recommended: it detects every visit, even when two in a row report the same weight.",
+        "data": {
+          "name": "Name",
+          "weight_entity": "Cat weight sensor",
+          "visit_entity": "Visit counter sensor (recommended)",
+          "duration_entity": "Visit duration sensor"
+        }
+      },
+      "cat": {
+        "title": "Cat {count}",
+        "description": "Name and approximate weight. The weight is only a starting point: it is learned and updated on every identified visit.",
+        "data": {
+          "name": "Name",
+          "weight": "Approximate weight",
+          "add_another": "Add another cat after this one"
+        }
+      }
+    },
+    "error": {
+      "invalid_name": "Name cannot be empty.",
+      "duplicate_name": "That name is already used."
+    },
+    "abort": {
+      "already_configured": "This weight sensor is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Identification settings",
+        "data": {
+          "tolerance": "Max difference from a cat's weight",
+          "smoothing": "Learning rate",
+          "min_weight": "Ignore readings below"
+        },
+        "data_description": {
+          "tolerance": "Readings further than this from every cat are logged as unidentified.",
+          "smoothing": "How much each visit moves the learned weight (0 = never, 1 = jump to the latest reading).",
+          "min_weight": "Filters out empty-box readings and noise."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_visit": {
+        "name": "Last visit",
+        "state": { "unidentified": "Unidentified" }
+      },
+      "unidentified_today": { "name": "Unidentified visits today" },
+      "cat_weight": { "name": "{cat} weight" },
+      "cat_visits_today": { "name": "{cat} visits today" },
+      "cat_last_visit": { "name": "{cat} last visit" }
+    },
+    "event": {
+      "visit": { "name": "Visit" }
+    }
+  },
+  "services": {
+    "reassign_last_visit": {
+      "name": "Reassign last visit",
+      "description": "Correct the most recent visit when the wrong cat was identified.",
+      "fields": {
+        "cat": { "name": "Cat", "description": "Name of the cat that actually visited." },
+        "config_entry_id": { "name": "Litter box", "description": "Only needed with more than one litter box." }
+      }
+    }
+  }
+}
