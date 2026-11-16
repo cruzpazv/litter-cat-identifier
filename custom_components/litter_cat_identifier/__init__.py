@@ -24,6 +24,7 @@ from .const import (
     SERVICE_RECALIBRATE,
 )
 from .coordinator import LitterCoordinator
+from .frontend import async_register_cards
 from .pictures import async_delete_pictures, async_register_static_path
 
 PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.SENSOR]
@@ -78,6 +79,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(DOMAIN, SERVICE_REASSIGN, _reassign, schema=REASSIGN_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_RECALIBRATE, _recalibrate, schema=RECALIBRATE_SCHEMA)
     await async_register_static_path(hass)
+    await async_register_cards(hass)
     return True
 
 

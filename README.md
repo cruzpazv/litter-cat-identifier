@@ -24,6 +24,7 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - **Notifications** from the UI: every visit, unidentified visits, or "no visit in X hours" per cat (photo attached on the HA mobile app)
 - Unidentified readings come with a **likely reason**: a cat half inside right after its visit (and which cat), or a litter refill
 - **Recalibrate** a cat's weight from its latest readings with one button
+- **Ready-made dashboard cards**: cats, recent visits and weight history
 - Service to fix a misidentified visit
 - No cloud, no dependencies, config flow UI, English + Spanish
 
@@ -126,9 +127,33 @@ actions:
       message: "Luna hasn't used the litter box in 24 hours."
 ```
 
-## Dashboard
+## Dashboard cards
 
-See [`examples/dashboard.yaml`](examples/dashboard.yaml): per-cat cards, visit log and 30-day weight graph.
+The integration ships its own cards. Edit a dashboard → **Add card** → search **Litter Cat Identifier**:
+
+| Card | Shows |
+|---|---|
+| **Cats** (`custom:litter-cat-identifier-cats`) | Photo, name, weight, visits today and last visit of each cat |
+| **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens) |
+| **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat |
+
+They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). Optional settings:
+
+```yaml
+type: custom:litter-cat-identifier-cats
+columns: 2          # cats per row
+# title: My cats
+# device_id: ...    # only with more than one litter box
+---
+type: custom:litter-cat-identifier-visits
+count: 8
+---
+type: custom:litter-cat-identifier-weight
+days: 7            # up to 14 days: hourly points; more: daily
+# period: hour      # force hour | day | week
+```
+
+Prefer building your own? See [`examples/dashboard.yaml`](examples/dashboard.yaml).
 
 ## Limitations
 

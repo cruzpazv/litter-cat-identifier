@@ -80,6 +80,10 @@ class CatWeightSensor(LitterEntity, SensorEntity):
         super().__init__(coordinator, "cat_weight", cat)
 
     @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"cat": self.cat}
+
+    @property
     def native_value(self) -> float:
         return self.coordinator.learned[self.cat]
 
@@ -92,6 +96,10 @@ class CatVisitsTodaySensor(LitterEntity, SensorEntity):
         super().__init__(coordinator, "cat_visits_today", cat)
 
     @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"cat": self.cat}
+
+    @property
     def native_value(self) -> int:
         return self.coordinator.visits_today.get(self.cat, 0)
 
@@ -101,6 +109,10 @@ class CatLastVisitSensor(LitterEntity, SensorEntity):
 
     def __init__(self, coordinator, cat: str) -> None:
         super().__init__(coordinator, "cat_last_visit", cat)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {"cat": self.cat}
 
     @property
     def native_value(self) -> datetime | None:

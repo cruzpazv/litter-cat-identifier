@@ -227,3 +227,13 @@ async def test_recalibrate(hass: HomeAssistant):
         await hass.services.async_call(
             "button", "press", {"entity_id": "button.taco_recalibrate_simba_weight"}, blocking=True
         )
+
+
+async def test_cards_served(hass: HomeAssistant, hass_client):
+    await _setup(hass)
+    assert hass.states.get("sensor.taco_luna_weight").attributes["cat"] == "Luna"
+    assert hass.states.get("sensor.taco_simba_visits_today").attributes["cat"] == "Simba"
+    client = await hass_client()
+    resp = await client.get("/litter_cat_identifier_static/litter-cat-identifier-cards.js")
+    assert resp.status == 200
+    assert "litter-cat-identifier-cats" in await resp.text()

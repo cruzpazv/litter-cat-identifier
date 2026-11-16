@@ -46,7 +46,7 @@ cards:
       | Time | Cat | Weight | Duration |
       |:--|:--|--:|--:|
       {% for v in (state_attr('sensor.litter_box_last_visit', 'history') or [])[:10] -%}
-      | {{ as_timestamp(v.time) | timestamp_custom('%d/%m %H:%M') }} | {% if v.cat == 'unidentified' %}❔ {{ 'probably ' ~ v.likely_cat ~ ' half inside' if v.reason == 'partial_after_visit' else 'no weight' if v.reason == 'no_weight' else 'refill or cat half inside' }}{% else %}{{ v.cat }}{% endif %} | {{ '%.2f kg' % v.weight if v.weight is not none else '–' }} | {{ '%d s' % v.duration if v.duration is not none else '–' }} |
+      | {{ as_timestamp(v.time) | timestamp_custom('%d/%m %H:%M') }} | {% if v.cat == 'unidentified' %}❔ {{ 'probably ' ~ v.get('likely_cat', '') ~ ' half inside' if v.get('reason') == 'partial_after_visit' else 'no weight' if v.get('reason') == 'no_weight' else 'refill or cat half inside' }}{% else %}{{ v.cat }}{% endif %} | {{ '%.2f kg' % v.weight if v.weight is not none else '–' }} | {{ '%d s' % v.duration if v.duration is not none else '–' }} |
       {% endfor %}
 
   # Weight trend per cat (long-term statistics)
