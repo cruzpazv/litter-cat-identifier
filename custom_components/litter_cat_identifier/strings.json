@@ -17,7 +17,11 @@
         "data": {
           "name": "Name",
           "weight": "Approximate weight",
-          "add_another": "Add another cat after this one"
+          "add_another": "Add another cat after this one",
+          "picture": "Photo (optional)"
+        },
+        "data_description": {
+          "picture": "Path or URL, e.g. /local/cats/luna.jpg (file in config/www/cats/)."
         }
       }
     },
@@ -32,16 +36,44 @@
   "options": {
     "step": {
       "init": {
-        "title": "Identification settings",
+        "title": "Litter Cat Identifier",
+        "menu_options": {
+          "settings": "General settings & notifications",
+          "cat_select": "Cat: photo & notifications"
+        }
+      },
+      "settings": {
+        "title": "General settings",
         "data": {
           "tolerance": "Max difference from a cat's weight",
           "smoothing": "Learning rate",
-          "min_weight": "Ignore readings below"
+          "min_weight": "Ignore readings below",
+          "notify_targets": "Send notifications to",
+          "notify_unidentified": "Notify unidentified visits"
         },
         "data_description": {
           "tolerance": "Readings further than this from every cat are logged as unidentified.",
           "smoothing": "How much each visit moves the learned weight (0 = never, 1 = jump to the latest reading).",
-          "min_weight": "Filters out empty-box readings and noise."
+          "min_weight": "Filters out empty-box readings and noise.",
+          "notify_targets": "Notify services, e.g. notify.mobile_app_my_phone. Photos are attached on mobile app targets."
+        }
+      },
+      "cat_select": {
+        "title": "Choose a cat",
+        "data": {
+          "cat": "Cat"
+        }
+      },
+      "cat_edit": {
+        "title": "{cat}",
+        "data": {
+          "picture": "Photo (optional)",
+          "notify_visit": "Notify every visit",
+          "alert_hours": "Alert if no visit for"
+        },
+        "data_description": {
+          "picture": "Path or URL, e.g. /local/cats/luna.jpg (file in config/www/cats/).",
+          "alert_hours": "Hours without a visit before alerting. 0 = off."
         }
       }
     }
@@ -50,15 +82,27 @@
     "sensor": {
       "last_visit": {
         "name": "Last visit",
-        "state": { "unidentified": "Unidentified" }
+        "state": {
+          "unidentified": "Unidentified"
+        }
       },
-      "unidentified_today": { "name": "Unidentified visits today" },
-      "cat_weight": { "name": "{cat} weight" },
-      "cat_visits_today": { "name": "{cat} visits today" },
-      "cat_last_visit": { "name": "{cat} last visit" }
+      "unidentified_today": {
+        "name": "Unidentified visits today"
+      },
+      "cat_weight": {
+        "name": "{cat} weight"
+      },
+      "cat_visits_today": {
+        "name": "{cat} visits today"
+      },
+      "cat_last_visit": {
+        "name": "{cat} last visit"
+      }
     },
     "event": {
-      "visit": { "name": "Visit" }
+      "visit": {
+        "name": "Visit"
+      }
     }
   },
   "services": {
@@ -66,8 +110,14 @@
       "name": "Reassign last visit",
       "description": "Correct the most recent visit when the wrong cat was identified.",
       "fields": {
-        "cat": { "name": "Cat", "description": "Name of the cat that actually visited." },
-        "config_entry_id": { "name": "Litter box", "description": "Only needed with more than one litter box." }
+        "cat": {
+          "name": "Cat",
+          "description": "Name of the cat that actually visited."
+        },
+        "config_entry_id": {
+          "name": "Litter box",
+          "description": "Only needed with more than one litter box."
+        }
       }
     }
   }

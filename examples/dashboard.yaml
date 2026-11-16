@@ -15,6 +15,7 @@ cards:
   # One card per cat: visits today · last visit · learned weight
   - type: custom:mushroom-template-card
     entity: sensor.taco_luna_weight
+    picture: "{{ state_attr(entity, 'entity_picture') }}"
     primary: Luna
     secondary: >-
       {{ states('sensor.taco_luna_visits_today') }} visits today ·
@@ -27,6 +28,7 @@ cards:
       columns: 6
   - type: custom:mushroom-template-card
     entity: sensor.taco_simba_weight
+    picture: "{{ state_attr(entity, 'entity_picture') }}"
     primary: Simba
     secondary: >-
       {{ states('sensor.taco_simba_visits_today') }} visits today ·

@@ -16,16 +16,26 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
     TextSelector,
 )
 
 from .const import (
     CONF_ADD_ANOTHER,
+    CONF_ALERT_HOURS,
+    CONF_CAT,
     CONF_CAT_NAME,
+    CONF_CAT_OPTIONS,
     CONF_CAT_WEIGHT,
     CONF_CATS,
     CONF_DURATION_ENTITY,
     CONF_MIN_WEIGHT,
+    CONF_NOTIFY_TARGETS,
+    CONF_NOTIFY_UNIDENTIFIED,
+    CONF_NOTIFY_VISIT,
+    CONF_PICTURE,
     CONF_SMOOTHING,
     CONF_TOLERANCE,
     CONF_VISIT_ENTITY,
@@ -47,12 +57,18 @@ def _kg(min_v: float, max_v: float, step: float) -> NumberSelector:
     )
 
 
+def _picture(value: Any) -> str | None:
+    value = (value or "").strip()
+    return value or None
+
+
 class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
         self._cats: list[dict[str, Any]] = []
+        self._cat_options: dict[str, dict[str, Any]] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
@@ -82,6 +98,7 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors[CONF_CAT_NAME] = "duplicate_name"
             else:
                 self._cats.append({CONF_CAT_NAME: name, CONF_CAT_WEIGHT: float(user_input[CONF_CAT_WEIGHT])})
+                self._cat_options[name] = {CONF_PICTURE: _picture(user_input.get(CONF_PICTURE))}
                 if user_input.get(CONF_ADD_ANOTHER):
                     return await self.async_step_cat()
                 return self.async_create_entry(
@@ -91,6 +108,7 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_TOLERANCE: DEFAULT_TOLERANCE,
                         CONF_SMOOTHING: DEFAULT_SMOOTHING,
                         CONF_MIN_WEIGHT: DEFAULT_MIN_WEIGHT,
+                        CONF_CAT_OPTIONS: self._cat_options,
                     },
                 )
 
@@ -98,6 +116,7 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_CAT_NAME): TextSelector(),
                 vol.Required(CONF_CAT_WEIGHT): _kg(0.5, 15, 0.05),
+                vol.Optional(CONF_PICTURE): TextSelector(),
                 vol.Optional(CONF_ADD_ANOTHER, default=len(self._cats) == 0): BooleanSelector(),
             }
         )
@@ -115,11 +134,21 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class LitterCatOptionsFlow(OptionsFlow):
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        if user_input is not None:
-            return self.async_create_entry(data=user_input)
+    def __init__(self) -> None:
+        self._cat: str | None = None
 
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        return self.async_show_menu(step_id="init", menu_options=["settings", "cat_select"])
+
+    async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         opts = self.config_entry.options
+        if user_input is not None:
+            return self.async_create_entry(data={**opts, **user_input})
+
+        current = list(opts.get(CONF_NOTIFY_TARGETS, []))
+        services = sorted(
+            {f"notify.{s}" for s in self.hass.services.async_services_for_domain("notify")} | set(current)
+        )
         schema = vol.Schema(
             {
                 vol.Required(CONF_TOLERANCE, default=opts.get(CONF_TOLERANCE, DEFAULT_TOLERANCE)): _kg(0.1, 5, 0.05),
@@ -127,6 +156,51 @@ class LitterCatOptionsFlow(OptionsFlow):
                     NumberSelectorConfig(min=0, max=1, step=0.05, mode=NumberSelectorMode.SLIDER)
                 ),
                 vol.Required(CONF_MIN_WEIGHT, default=opts.get(CONF_MIN_WEIGHT, DEFAULT_MIN_WEIGHT)): _kg(0, 10, 0.1),
+                vol.Optional(CONF_NOTIFY_TARGETS, default=current): SelectSelector(
+                    SelectSelectorConfig(
+                        options=services, multiple=True, custom_value=True, mode=SelectSelectorMode.DROPDOWN
+                    )
+                ),
+                vol.Required(
+                    CONF_NOTIFY_UNIDENTIFIED, default=opts.get(CONF_NOTIFY_UNIDENTIFIED, False)
+                ): BooleanSelector(),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="settings", data_schema=schema)
+
+    async def async_step_cat_select(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            self._cat = user_input[CONF_CAT]
+            return await self.async_step_cat_edit()
+
+        names = [c[CONF_CAT_NAME] for c in self.config_entry.data[CONF_CATS]]
+        schema = vol.Schema(
+            {vol.Required(CONF_CAT): SelectSelector(SelectSelectorConfig(options=names, mode=SelectSelectorMode.LIST))}
+        )
+        return self.async_show_form(step_id="cat_select", data_schema=schema)
+
+    async def async_step_cat_edit(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        opts = self.config_entry.options
+        cat_opts = dict(opts.get(CONF_CAT_OPTIONS, {}))
+        current = cat_opts.get(self._cat, {})
+
+        if user_input is not None:
+            cat_opts[self._cat] = {
+                CONF_PICTURE: _picture(user_input.get(CONF_PICTURE)),
+                CONF_NOTIFY_VISIT: user_input[CONF_NOTIFY_VISIT],
+                CONF_ALERT_HOURS: float(user_input[CONF_ALERT_HOURS]),
+            }
+            return self.async_create_entry(data={**opts, CONF_CAT_OPTIONS: cat_opts})
+
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_PICTURE, description={"suggested_value": current.get(CONF_PICTURE)}): TextSelector(),
+                vol.Required(CONF_NOTIFY_VISIT, default=current.get(CONF_NOTIFY_VISIT, False)): BooleanSelector(),
+                vol.Required(CONF_ALERT_HOURS, default=current.get(CONF_ALERT_HOURS, 0)): NumberSelector(
+                    NumberSelectorConfig(min=0, max=168, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="h")
+                ),
+            }
+        )
+        return self.async_show_form(
+            step_id="cat_edit", data_schema=schema, description_placeholders={"cat": self._cat}
+        )

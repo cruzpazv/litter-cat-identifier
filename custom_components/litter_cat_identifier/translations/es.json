@@ -17,7 +17,11 @@
         "data": {
           "name": "Nombre",
           "weight": "Peso aproximado",
-          "add_another": "Añadir otro gato después de este"
+          "add_another": "Añadir otro gato después de este",
+          "picture": "Foto (opcional)"
+        },
+        "data_description": {
+          "picture": "Ruta o URL, p. ej. /local/gatos/luna.jpg (archivo en config/www/gatos/)."
         }
       }
     },
@@ -32,16 +36,44 @@
   "options": {
     "step": {
       "init": {
-        "title": "Ajustes de identificación",
+        "title": "Litter Cat Identifier",
+        "menu_options": {
+          "settings": "Ajustes generales y notificaciones",
+          "cat_select": "Gato: foto y notificaciones"
+        }
+      },
+      "settings": {
+        "title": "Ajustes generales",
         "data": {
           "tolerance": "Diferencia máxima con el peso de un gato",
           "smoothing": "Velocidad de aprendizaje",
-          "min_weight": "Ignorar lecturas por debajo de"
+          "min_weight": "Ignorar lecturas por debajo de",
+          "notify_targets": "Enviar notificaciones a",
+          "notify_unidentified": "Avisar de visitas no identificadas"
         },
         "data_description": {
           "tolerance": "Las lecturas más alejadas que esto de todos los gatos se registran como no identificadas.",
           "smoothing": "Cuánto mueve cada visita el peso aprendido (0 = nunca, 1 = salta a la última lectura).",
-          "min_weight": "Filtra lecturas con el arenero vacío y ruido."
+          "min_weight": "Filtra lecturas con el arenero vacío y ruido.",
+          "notify_targets": "Servicios notify, p. ej. notify.mobile_app_mi_movil. En la app móvil se adjunta la foto."
+        }
+      },
+      "cat_select": {
+        "title": "Elige un gato",
+        "data": {
+          "cat": "Gato"
+        }
+      },
+      "cat_edit": {
+        "title": "{cat}",
+        "data": {
+          "picture": "Foto (opcional)",
+          "notify_visit": "Avisar en cada visita",
+          "alert_hours": "Alertar si no va en"
+        },
+        "data_description": {
+          "picture": "Ruta o URL, p. ej. /local/gatos/luna.jpg (archivo en config/www/gatos/).",
+          "alert_hours": "Horas sin visita antes de alertar. 0 = desactivado."
         }
       }
     }
@@ -50,15 +82,27 @@
     "sensor": {
       "last_visit": {
         "name": "Última visita",
-        "state": { "unidentified": "No identificado" }
+        "state": {
+          "unidentified": "No identificado"
+        }
       },
-      "unidentified_today": { "name": "Visitas no identificadas hoy" },
-      "cat_weight": { "name": "Peso de {cat}" },
-      "cat_visits_today": { "name": "Visitas de {cat} hoy" },
-      "cat_last_visit": { "name": "Última visita de {cat}" }
+      "unidentified_today": {
+        "name": "Visitas no identificadas hoy"
+      },
+      "cat_weight": {
+        "name": "Peso de {cat}"
+      },
+      "cat_visits_today": {
+        "name": "Visitas de {cat} hoy"
+      },
+      "cat_last_visit": {
+        "name": "Última visita de {cat}"
+      }
     },
     "event": {
-      "visit": { "name": "Visita" }
+      "visit": {
+        "name": "Visita"
+      }
     }
   },
   "services": {
@@ -66,8 +110,14 @@
       "name": "Reasignar última visita",
       "description": "Corrige la visita más reciente cuando se identificó el gato equivocado.",
       "fields": {
-        "cat": { "name": "Gato", "description": "Nombre del gato que realmente entró." },
-        "config_entry_id": { "name": "Arenero", "description": "Solo necesario con más de un arenero." }
+        "cat": {
+          "name": "Gato",
+          "description": "Nombre del gato que realmente entró."
+        },
+        "config_entry_id": {
+          "name": "Arenero",
+          "description": "Solo necesario con más de un arenero."
+        }
       }
     }
   }

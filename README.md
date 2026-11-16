@@ -7,6 +7,8 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - Per cat: learned weight (long-term statistics → trend graphs), visits today, last visit
 - Visit log of the last 20 visits (time, cat, weight, duration)
 - An **event entity** per litter box → automations like "notify if Luna hasn't visited in 24 h" or "Simba visited 6 times today"
+- **Photo per cat** shown on all of that cat's entities
+- **Notifications** from the UI: every visit, unidentified visits, or "no visit in X hours" per cat (photo attached on the HA mobile app)
 - Service to fix a misidentified visit
 - No cloud, no dependencies, config flow UI, English + Spanish
 
@@ -39,9 +41,14 @@ Copy `custom_components/litter_cat_identifier` into your `config/custom_componen
 Settings → Devices & services → Add integration → **Litter Cat Identifier**
 
 1. Name + sensors from your litter box: cat weight (required), visit counter (recommended), visit duration (optional).
-2. Add each cat: name + approximate weight.
+2. Add each cat: name, approximate weight and (optionally) a photo.
 
-Options (⚙ on the integration): tolerance, learning rate, minimum weight.
+**Options** (⚙ on the integration):
+
+- *General settings & notifications*: tolerance, learning rate, minimum weight, notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits.
+- *Cat: photo & notifications*: photo, notify every visit, alert after N hours without a visit (0 = off; one alert until the cat visits again).
+
+**Photos**: put the image in `config/www/cats/luna.jpg` (File editor / Samba add-on) and use `/local/cats/luna.jpg`. Any `https://` URL works too.
 
 ## Entities
 
@@ -68,7 +75,9 @@ data:
   cat: Simba
 ```
 
-## Automation example
+## Custom automations
+
+Built-in notifications cover the common cases. For anything else, use the event entity or the timestamps, e.g.:
 
 ```yaml
 alias: Luna hasn't used the litter box in 24 h

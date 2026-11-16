@@ -25,6 +25,16 @@ WEIGHT_DEBOUNCE = 60  # s, weight-only mode
 COUNTER_DELAY = 5  # s, wait for the weight sensor after the counter ticks
 WEIGHT_FRESHNESS = 600  # s, how old a cached weight may be in counter mode
 
+INACTIVITY_CHECK = 300  # s
+
+CONF_PICTURE = "picture"
+CONF_CAT = "cat"
+CONF_CAT_OPTIONS = "cat_options"
+CONF_NOTIFY_TARGETS = "notify_targets"
+CONF_NOTIFY_UNIDENTIFIED = "notify_unidentified"
+CONF_NOTIFY_VISIT = "notify_visit"
+CONF_ALERT_HOURS = "alert_hours"
+
 STORAGE_VERSION = 1
 
 SERVICE_REASSIGN = "reassign_last_visit"

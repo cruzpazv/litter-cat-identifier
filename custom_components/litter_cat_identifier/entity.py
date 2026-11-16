@@ -30,6 +30,10 @@ class LitterEntity(Entity):
             model="Weight-based cat identification",
         )
 
+    @property
+    def entity_picture(self) -> str | None:
+        return self.coordinator.picture(self.cat)
+
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(
             async_dispatcher_connect(

@@ -41,6 +41,10 @@ class LastVisitSensor(LitterEntity, SensorEntity):
         return h[0]["cat"] if h else None
 
     @property
+    def entity_picture(self) -> str | None:
+        return self.coordinator.picture(self.native_value)
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any]:
         h = self.coordinator.history
         last = h[0] if h else {}

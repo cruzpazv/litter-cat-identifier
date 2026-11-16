@@ -5,7 +5,7 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
+from pytest_homeassistant_custom_component.common import async_fire_time_changed, async_mock_service
 
 from custom_components.litter_cat_identifier.const import DOMAIN
 
@@ -98,6 +98,73 @@ async def test_weight_only_mode(hass: HomeAssistant):
     await hass.async_block_till_done()
     assert hass.states.get("sensor.taco_simba_visits_today").state == "1"
     assert len(hass.states.get("sensor.taco_last_visit").attributes["history"]) == 1
+
+
+async def test_pictures_and_notifications(hass: HomeAssistant, freezer):
+    calls = async_mock_service(hass, "notify", "mobile_app_phone")
+    entry = await _setup(hass)
+
+    # general settings: notify target + unidentified alerts
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    assert r["type"] is FlowResultType.MENU
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "settings"})
+    sel = next(v for k, v in r["data_schema"].schema.items() if k == "notify_targets")
+    assert "notify.mobile_app_phone" in sel.config["options"]
+    r = await hass.config_entries.options.async_configure(
+        r["flow_id"],
+        {"tolerance": 1.0, "smoothing": 0.2, "min_weight": 1.0,
+         "notify_targets": ["notify.mobile_app_phone"], "notify_unidentified": True},
+    )
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+
+    # per-cat: photo, notify on visit, alert after 1 h
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "cat_select"})
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {"cat": "Luna"})
+    assert r["step_id"] == "cat_edit"
+    r = await hass.config_entries.options.async_configure(
+        r["flow_id"], {"picture": " /local/gatos/luna.jpg ", "notify_visit": True, "alert_hours": 1}
+    )
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options["notify_targets"] == ["notify.mobile_app_phone"]  # settings kept
+
+    assert hass.states.get("sensor.taco_luna_weight").attributes["entity_picture"] == "/local/gatos/luna.jpg"
+    assert "entity_picture" not in hass.states.get("sensor.taco_simba_weight").attributes
+
+    await _visit(hass, 3.9, 1)
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+    assert calls[0].data["message"] == "Luna used the litter box (3.90 kg)."
+    assert calls[0].data["data"]["image"] == "/local/gatos/luna.jpg"
+    assert hass.states.get("sensor.taco_last_visit").attributes["entity_picture"] == "/local/gatos/luna.jpg"
+
+    await _visit(hass, 5.4, 2)   # Simba: notify_visit off
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+
+    await _visit(hass, 9.0, 3)   # unidentified
+    await hass.async_block_till_done()
+    assert len(calls) == 2 and "unidentified" in calls[1].data["message"]
+
+    # inactivity: one alert only, re-armed by the next visit
+    freezer.tick(timedelta(hours=2))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=10))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    alerts = [c for c in calls if "over 1 h" in c.data["message"]]
+    assert len(alerts) == 1
+
+
+def test_messages_es():
+    from custom_components.litter_cat_identifier.messages import text
+
+    assert text("es", "visit", cat="Luna", weight=3.9) == "Luna ha usado el arenero (3.90 kg)."
+    assert text("es", "unidentified", weight=None) == "Un gato no identificado ha usado el arenero."
+    assert text("fr", "inactive", cat="Luna", hours="24") == "Luna hasn't used the litter box for over 24 h."
 
 
 async def test_grams(hass: HomeAssistant):
