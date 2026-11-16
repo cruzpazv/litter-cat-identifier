@@ -146,7 +146,7 @@ async def test_pictures_and_notifications(hass: HomeAssistant, freezer):
 
     await _visit(hass, 9.0, 3)   # unidentified
     await hass.async_block_till_done()
-    assert len(calls) == 2 and "unidentified" in calls[1].data["message"]
+    assert len(calls) == 2 and "Unidentified reading (9.00 kg)" in calls[1].data["message"]
 
     # inactivity: one alert only, re-armed by the next visit
     freezer.tick(timedelta(hours=2))
@@ -163,7 +163,12 @@ def test_messages_es():
     from custom_components.litter_cat_identifier.messages import text
 
     assert text("es", "visit", cat="Luna", weight=3.9) == "Luna ha usado el arenero (3.90 kg)."
-    assert text("es", "unidentified", weight=None) == "Un gato no identificado ha usado el arenero."
+    assert text("es", "unidentified_refill_or_partial", weight=None, cat="") == (
+        "Lectura no identificada: probablemente relleno de arena o un gato medio dentro."
+    )
+    assert text("es", "unidentified_partial_after_visit", weight=2.1, cat="Mochi") == (
+        "Lectura no identificada (2.10 kg): probablemente Mochi medio dentro, justo tras su visita."
+    )
     assert text("fr", "inactive", cat="Luna", hours="24") == "Luna hasn't used the litter box for over 24 h."
 
 
@@ -175,3 +180,50 @@ async def test_grams(hass: HomeAssistant):
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))
     await hass.async_block_till_done()
     assert hass.states.get("sensor.taco_last_visit").state == "Luna"
+
+
+async def test_unidentified_reasons(hass: HomeAssistant, freezer):
+    await _setup(hass)
+    await _visit(hass, 3.9, 1)                 # Luna
+    freezer.tick(timedelta(seconds=30))
+    await _visit(hass, 1.6, 2)                 # 30 s later, half a cat
+    last = hass.states.get("sensor.taco_last_visit")
+    assert last.state == "unidentified"
+    assert last.attributes["reason"] == "partial_after_visit"
+    assert last.attributes["likely_cat"] == "Luna"
+
+    freezer.tick(timedelta(minutes=30))
+    await _visit(hass, 9.5, 3)                 # much later, too heavy
+    last = hass.states.get("sensor.taco_last_visit")
+    assert last.attributes["reason"] == "refill_or_partial"
+    assert last.attributes["likely_cat"] is None
+
+    # reassigning clears the guess
+    await hass.services.async_call(DOMAIN, "reassign_last_visit", {"cat": "Simba"}, blocking=True)
+    hist = hass.states.get("sensor.taco_last_visit").attributes["history"]
+    assert "reason" not in hist[0]
+
+
+async def test_recalibrate(hass: HomeAssistant):
+    await _setup(hass)
+    for i, kg in enumerate((4.30, 4.40, 4.35, 9.0, 4.45), start=1):
+        await _visit(hass, kg, i)
+    # Luna learned slowly from 3.8; recalibrating jumps to the median of her readings
+    btn = "button.taco_recalibrate_luna_weight"
+    assert hass.states.get(btn) is not None
+    await hass.services.async_call("button", "press", {"entity_id": btn}, blocking=True)
+    assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(4.375)
+
+    await hass.services.async_call(DOMAIN, "recalibrate_weight", {"cat": "Luna", "samples": 2}, blocking=True)
+    assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(4.40)
+
+    await hass.services.async_call(DOMAIN, "recalibrate_weight", {"cat": "Simba", "weight": 5.8}, blocking=True)
+    assert float(hass.states.get("sensor.taco_simba_weight").state) == pytest.approx(5.8)
+
+    # Simba has no weighed visits: the button explains instead of guessing
+    from homeassistant.exceptions import HomeAssistantError
+    await hass.services.async_call(DOMAIN, "recalibrate_weight", {"cat": "Simba", "weight": 5.5}, blocking=True)
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": "button.taco_recalibrate_simba_weight"}, blocking=True
+        )

@@ -52,6 +52,8 @@ class LastVisitSensor(LitterEntity, SensorEntity):
             "time": last.get("time"),
             "weight": last.get("weight"),
             "duration": last.get("duration"),
+            "reason": last.get("reason"),
+            "likely_cat": last.get("likely_cat"),
             "history": h,
         }
 

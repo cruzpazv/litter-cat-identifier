@@ -49,3 +49,26 @@ def learn(current: float, reading: float, smoothing: float) -> float:
     """Exponential moving average so the reference follows slow weight changes."""
     smoothing = min(max(smoothing, 0.0), 1.0)
     return current * (1.0 - smoothing) + reading * smoothing
+
+
+def median(values: list[float]) -> float:
+    ordered = sorted(values)
+    n = len(ordered)
+    if not n:
+        raise ValueError("no values")
+    mid = n // 2
+    return ordered[mid] if n % 2 else (ordered[mid - 1] + ordered[mid]) / 2
+
+
+def classify_unidentified(
+    weight: float | None,
+    seconds_since_previous: float | None,
+    previous_cat: str | None,
+    window: float,
+) -> tuple[str, str | None]:
+    """Best guess for an unidentified reading: (reason, likely_cat)."""
+    if previous_cat is not None and seconds_since_previous is not None and 0 <= seconds_since_previous <= window:
+        return "partial_after_visit", previous_cat
+    if weight is None:
+        return "no_weight", None
+    return "refill_or_partial", None

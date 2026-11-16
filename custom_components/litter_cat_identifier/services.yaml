@@ -10,3 +10,34 @@ reassign_last_visit:
       selector:
         config_entry:
           integration: litter_cat_identifier
+
+recalibrate_weight:
+  fields:
+    cat:
+      required: true
+      example: "Luna"
+      selector:
+        text:
+    weight:
+      required: false
+      example: 4.2
+      selector:
+        number:
+          min: 0.3
+          max: 20
+          step: 0.05
+          unit_of_measurement: kg
+          mode: box
+    samples:
+      required: false
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 20
+          mode: box
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: litter_cat_identifier

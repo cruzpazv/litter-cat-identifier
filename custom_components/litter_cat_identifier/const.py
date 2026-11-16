@@ -40,5 +40,14 @@ CONF_ALERT_HOURS = "alert_hours"
 STORAGE_VERSION = 1
 
 SERVICE_REASSIGN = "reassign_last_visit"
+SERVICE_RECALIBRATE = "recalibrate_weight"
+ATTR_WEIGHT = "weight"
+ATTR_SAMPLES = "samples"
+
+PARTIAL_WINDOW = 60  # s after a cat's visit: an unidentified reading is probably that cat half-in
+RECALIBRATE_SAMPLES = 5
+REASON_PARTIAL = "partial_after_visit"
+REASON_REFILL = "refill_or_partial"
+REASON_NO_WEIGHT = "no_weight"
 ATTR_CAT = "cat"
 ATTR_CONFIG_ENTRY_ID = "config_entry_id"

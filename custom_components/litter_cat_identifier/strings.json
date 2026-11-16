@@ -114,6 +114,11 @@
       "visit": {
         "name": "Visit"
       }
+    },
+    "button": {
+      "recalibrate": {
+        "name": "Recalibrate {cat} weight"
+      }
     }
   },
   "services": {
@@ -124,6 +129,28 @@
         "cat": {
           "name": "Cat",
           "description": "Name of the cat that actually visited."
+        },
+        "config_entry_id": {
+          "name": "Litter box",
+          "description": "Only needed with more than one litter box."
+        }
+      }
+    },
+    "recalibrate_weight": {
+      "name": "Recalibrate weight",
+      "description": "Reset a cat's learned weight to the median of its latest weighed visits, or to a given value.",
+      "fields": {
+        "cat": {
+          "name": "Cat",
+          "description": "Name of the cat."
+        },
+        "weight": {
+          "name": "Weight",
+          "description": "Set this exact weight instead of using recent visits."
+        },
+        "samples": {
+          "name": "Visits",
+          "description": "How many of the latest weighed visits to use (default 5)."
         },
         "config_entry_id": {
           "name": "Litter box",

@@ -1,25 +1,25 @@
 # Example section for a "sections" dashboard.
 # Entity IDs depend on your litter box name, cat names and HA language:
 # check Settings → Entities → filter "Litter Cat Identifier" and adjust.
-# Here: litter box "TACo", cats "Luna" and "Simba", HA in English.
+# Here: litter box "Litter box", cats "Luna" and "Simba", HA in English.
 
 type: grid
 cards:
   - type: heading
-    heading: TACo
+    heading: Litter box
     icon: mdi:cat
     badges:
       - type: entity
-        entity: sensor.taco_unidentified_visits_today
+        entity: sensor.litter_box_unidentified_visits_today
 
   # One card per cat: visits today · last visit · learned weight
   - type: custom:mushroom-template-card
-    entity: sensor.taco_luna_weight
+    entity: sensor.litter_box_luna_weight
     picture: "{{ state_attr(entity, 'entity_picture') }}"
     primary: Luna
     secondary: >-
-      {{ states('sensor.taco_luna_visits_today') }} visits today ·
-      {% set t = states('sensor.taco_luna_last_visit') %}
+      {{ states('sensor.litter_box_luna_visits_today') }} visits today ·
+      {% set t = states('sensor.litter_box_luna_last_visit') %}
       {{ 'last ' ~ relative_time(as_datetime(t)) ~ ' ago' if t not in ['unknown','unavailable'] else 'no visits yet' }}
     icon: mdi:cat
     icon_color: orange
@@ -27,12 +27,12 @@ cards:
     grid_options:
       columns: 6
   - type: custom:mushroom-template-card
-    entity: sensor.taco_simba_weight
+    entity: sensor.litter_box_simba_weight
     picture: "{{ state_attr(entity, 'entity_picture') }}"
     primary: Simba
     secondary: >-
-      {{ states('sensor.taco_simba_visits_today') }} visits today ·
-      {% set t = states('sensor.taco_simba_last_visit') %}
+      {{ states('sensor.litter_box_simba_visits_today') }} visits today ·
+      {% set t = states('sensor.litter_box_simba_last_visit') %}
       {{ 'last ' ~ relative_time(as_datetime(t)) ~ ' ago' if t not in ['unknown','unavailable'] else 'no visits yet' }}
     icon: mdi:cat
     icon_color: grey
@@ -45,8 +45,8 @@ cards:
     content: |
       | Time | Cat | Weight | Duration |
       |:--|:--|--:|--:|
-      {% for v in (state_attr('sensor.taco_last_visit', 'history') or [])[:10] -%}
-      | {{ as_timestamp(v.time) | timestamp_custom('%d/%m %H:%M') }} | {{ 'Unidentified' if v.cat == 'unidentified' else v.cat }} | {{ '%.2f kg' % v.weight if v.weight is not none else '–' }} | {{ '%d s' % v.duration if v.duration is not none else '–' }} |
+      {% for v in (state_attr('sensor.litter_box_last_visit', 'history') or [])[:10] -%}
+      | {{ as_timestamp(v.time) | timestamp_custom('%d/%m %H:%M') }} | {% if v.cat == 'unidentified' %}❔ {{ 'probably ' ~ v.likely_cat ~ ' half inside' if v.reason == 'partial_after_visit' else 'no weight' if v.reason == 'no_weight' else 'refill or cat half inside' }}{% else %}{{ v.cat }}{% endif %} | {{ '%.2f kg' % v.weight if v.weight is not none else '–' }} | {{ '%d s' % v.duration if v.duration is not none else '–' }} |
       {% endfor %}
 
   # Weight trend per cat (long-term statistics)
@@ -57,7 +57,7 @@ cards:
     stat_types: [mean]
     chart_type: line
     entities:
-      - entity: sensor.taco_luna_weight
+      - entity: sensor.litter_box_luna_weight
         name: Luna
-      - entity: sensor.taco_simba_weight
+      - entity: sensor.litter_box_simba_weight
         name: Simba

@@ -13,7 +13,7 @@
 [![Version](https://img.shields.io/badge/dynamic/json?label=VERSION&color=blue&url=https%3A%2F%2Fraw.githubusercontent.com%2Fcruzpazv%2Flitter-cat-identifier%2Fmain%2Fcustom_components%2Flitter_cat_identifier%2Fmanifest.json&query=%24.version)](custom_components/litter_cat_identifier/manifest.json)
 [![Home Assistant](https://img.shields.io/badge/dynamic/json?label=HOME%20ASSISTANT&color=41BDF5&prefix=%3E%3D&url=https%3A%2F%2Fraw.githubusercontent.com%2Fcruzpazv%2Flitter-cat-identifier%2Fmain%2Fhacs.json&query=%24.homeassistant)](https://www.home-assistant.io/)
 
-Home Assistant integration that tells your cats apart by weight on any automatic litter box that reports the cat's weight (Tuya / TACo, Petkit, Litter-Robot, CATLINK…).
+Home Assistant integration that tells your cats apart by weight on any automatic litter box that reports the cat's weight (Tuya, including UAHPET, Petkit, Litter-Robot, CATLINK…).
 
 - Names each visit after the right cat, or logs it as **unidentified**
 - **Learns** each cat's weight over time (cats gain and lose weight; the reference follows them)
@@ -22,6 +22,8 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - An **event entity** per litter box → automations like "notify if Luna hasn't visited in 24 h" or "Simba visited 6 times today"
 - **Photo per cat** shown on all of that cat's entities
 - **Notifications** from the UI: every visit, unidentified visits, or "no visit in X hours" per cat (photo attached on the HA mobile app)
+- Unidentified readings come with a **likely reason**: a cat half inside right after its visit (and which cat), or a litter refill
+- **Recalibrate** a cat's weight from its latest readings with one button
 - Service to fix a misidentified visit
 - No cloud, no dependencies, config flow UI, English + Spanish
 
@@ -65,20 +67,31 @@ Settings → Devices & services → Add integration → **Litter Cat Identifier*
 
 ## Entities
 
-For a litter box named *TACo* with cats *Luna* and *Simba*:
+For a litter box named *Litter box* with cats *Luna* and *Simba*:
 
 | Entity | Description |
 |---|---|
-| `sensor.taco_last_visit` | Last cat (or *unidentified*); attributes `time`, `weight`, `duration`, `history` (last 20) |
-| `sensor.taco_unidentified_visits_today` | Unidentified visits today |
-| `sensor.taco_luna_weight` | Learned weight (kg) |
-| `sensor.taco_luna_visits_today` | Visits today (resets at midnight) |
-| `sensor.taco_luna_last_visit` | Timestamp of last visit |
-| `event.taco_visit` | Fires per visit; `event_type` = cat name or `unidentified` |
+| `sensor.litter_box_last_visit` | Last cat (or *unidentified*); attributes `time`, `weight`, `duration`, `reason`, `likely_cat`, `history` (last 20) |
+| `sensor.litter_box_unidentified_visits_today` | Unidentified visits today |
+| `sensor.litter_box_luna_weight` | Learned weight (kg) |
+| `sensor.litter_box_luna_visits_today` | Visits today (resets at midnight) |
+| `sensor.litter_box_luna_last_visit` | Timestamp of last visit |
+| `event.litter_box_visit` | Fires per visit; `event_type` = cat name or `unidentified` |
+| `button.litter_box_recalibrate_luna_weight` | Sets Luna's weight to the median of her last 5 weighed visits |
 
 Entity IDs follow your HA language; check Settings → Entities.
 
-## Service
+## Unidentified readings
+
+Every unidentified reading gets a best guess in `reason` (also in the visit log and notifications):
+
+| `reason` | When | Meaning |
+|---|---|---|
+| `partial_after_visit` | ≤ 60 s after a cat's visit | That cat (`likely_cat`) half inside while leaving |
+| `refill_or_partial` | otherwise | Litter refill, or a cat half in/out |
+| `no_weight` | visit counted, no weight | The box didn't report a weight |
+
+## Services
 
 `litter_cat_identifier.reassign_last_visit` — fixes the latest visit:
 
@@ -86,6 +99,15 @@ Entity IDs follow your HA language; check Settings → Entities.
 action: litter_cat_identifier.reassign_last_visit
 data:
   cat: Simba
+```
+
+`litter_cat_identifier.recalibrate_weight` — resets a cat's learned weight to the median of its latest weighed visits (default 5), or to an exact value:
+
+```yaml
+action: litter_cat_identifier.recalibrate_weight
+data:
+  cat: Luna
+  samples: 5      # or: weight: 4.2
 ```
 
 ## Custom automations
@@ -97,7 +119,7 @@ alias: Luna hasn't used the litter box in 24 h
 triggers:
   - trigger: template
     value_template: >
-      {{ now() - states('sensor.taco_luna_last_visit') | as_datetime > timedelta(hours=24) }}
+      {{ now() - states('sensor.litter_box_luna_last_visit') | as_datetime > timedelta(hours=24) }}
 actions:
   - action: notify.notify
     data:

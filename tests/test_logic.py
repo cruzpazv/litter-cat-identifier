@@ -46,3 +46,23 @@ def test_to_kg(value, unit, kg):
 @pytest.mark.parametrize(("raw", "out"), [("4.2", 4.2), ("unknown", None), (None, None), ("nan", None)])
 def test_parse_float(raw, out):
     assert logic.parse_float(raw) == out
+
+
+def test_median():
+    assert logic.median([4.3, 4.5, 4.4]) == 4.4
+    assert logic.median([4.0, 5.0]) == 4.5
+
+
+@pytest.mark.parametrize(
+    ("weight", "since", "prev", "expected"),
+    [
+        (1.6, 30, "Luna", ("partial_after_visit", "Luna")),
+        (1.6, 60, "Luna", ("partial_after_visit", "Luna")),
+        (1.6, 61, "Luna", ("refill_or_partial", None)),
+        (1.6, 30, None, ("refill_or_partial", None)),
+        (None, 600, "Luna", ("no_weight", None)),
+        (None, 10, "Luna", ("partial_after_visit", "Luna")),
+    ],
+)
+def test_classify(weight, since, prev, expected):
+    assert logic.classify_unidentified(weight, since, prev, 60) == expected

@@ -114,6 +114,11 @@
       "visit": {
         "name": "Visita"
       }
+    },
+    "button": {
+      "recalibrate": {
+        "name": "Recalibrar peso de {cat}"
+      }
     }
   },
   "services": {
@@ -124,6 +129,28 @@
         "cat": {
           "name": "Gato",
           "description": "Nombre del gato que realmente entró."
+        },
+        "config_entry_id": {
+          "name": "Arenero",
+          "description": "Solo necesario con más de un arenero."
+        }
+      }
+    },
+    "recalibrate_weight": {
+      "name": "Recalibrar peso",
+      "description": "Restablece el peso aprendido de un gato a la mediana de sus últimas visitas con peso, o a un valor dado.",
+      "fields": {
+        "cat": {
+          "name": "Gato",
+          "description": "Nombre del gato."
+        },
+        "weight": {
+          "name": "Peso",
+          "description": "Fija este peso exacto en vez de usar las últimas visitas."
+        },
+        "samples": {
+          "name": "Visitas",
+          "description": "Cuántas de las últimas visitas con peso usar (5 por defecto)."
         },
         "config_entry_id": {
           "name": "Arenero",

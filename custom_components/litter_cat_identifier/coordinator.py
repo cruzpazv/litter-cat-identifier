@@ -48,12 +48,14 @@ from .const import (
     DOMAIN,
     HISTORY_SIZE,
     INACTIVITY_CHECK,
+    PARTIAL_WINDOW,
+    RECALIBRATE_SAMPLES,
     STORAGE_VERSION,
     UNIDENTIFIED,
     WEIGHT_DEBOUNCE,
     WEIGHT_FRESHNESS,
 )
-from .logic import identify, learn, parse_float, to_kg
+from .logic import classify_unidentified, identify, learn, median, parse_float, to_kg
 from .messages import text
 
 _LOGGER = logging.getLogger(__name__)
@@ -302,7 +304,17 @@ class LitterCoordinator:
             self.learned[cat] = round(learn(self.learned[cat], kg, self.smoothing), 3)
 
         key = cat or UNIDENTIFIED
-        now = dt_util.now().isoformat()
+        now_dt = dt_util.now()
+        now = now_dt.isoformat()
+
+        reason = likely = None
+        if not cat:
+            prev = self.history[0] if self.history else None
+            since = None
+            if prev and (prev_dt := dt_util.parse_datetime(prev["time"])):
+                since = (now_dt - prev_dt).total_seconds()
+            prev_cat = prev["cat"] if prev and prev["cat"] in self.cat_names else None
+            reason, likely = classify_unidentified(kg, since, prev_cat, PARTIAL_WINDOW)
         self.visits_today[key] = self.visits_today.get(key, 0) + 1
         if cat:
             self.last_visit[cat] = now
@@ -314,6 +326,9 @@ class LitterCoordinator:
             "weight": round(kg, 2) if kg is not None else None,
             "duration": self._read_duration(),
         }
+        if reason:
+            visit["reason"] = reason
+            visit["likely_cat"] = likely
         self.history.insert(0, visit)
         del self.history[HISTORY_SIZE:]
 
@@ -326,7 +341,7 @@ class LitterCoordinator:
         if cat and self.cat_settings[cat][CONF_NOTIFY_VISIT]:
             self._send(text(lang, "visit", cat=cat, weight=visit["weight"]), self.picture(cat))
         elif not cat and self.notify_unidentified:
-            self._send(text(lang, "unidentified", weight=visit["weight"]))
+            self._send(text(lang, f"unidentified_{reason}", weight=visit["weight"], cat=likely or ""))
 
     def reassign_last(self, cat: str) -> None:
         """Fix the most recent visit when identification got it wrong."""
@@ -345,6 +360,8 @@ class LitterCoordinator:
             self.visits_today[cat] = self.visits_today.get(cat, 0) + 1
 
         visit["cat"] = cat
+        visit.pop("reason", None)
+        visit.pop("likely_cat", None)
         self.last_visit[cat] = visit["time"]
         self.alerted[cat] = False
         if old in self.cat_names:
@@ -356,3 +373,19 @@ class LitterCoordinator:
 
         self._save()
         self._notify_entities()
+
+    def recalibrate(
+        self, cat: str, weight: float | None = None, samples: int = RECALIBRATE_SAMPLES
+    ) -> float:
+        """Reset a cat's learned weight: given value, or median of its latest readings."""
+        if cat not in self.cat_names:
+            raise ValueError(f"Unknown cat: {cat}")
+        if weight is None:
+            readings = [v["weight"] for v in self.history if v["cat"] == cat and v["weight"] is not None]
+            if not readings:
+                raise ValueError(f"No recent weighed visits for {cat}")
+            weight = median(readings[: max(1, int(samples))])
+        self.learned[cat] = round(float(weight), 3)
+        self._save()
+        self._notify_entities()
+        return self.learned[cat]

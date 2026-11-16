@@ -11,11 +11,22 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .const import ATTR_CAT, ATTR_CONFIG_ENTRY_ID, CONF_CAT_OPTIONS, CONF_PICTURE, DOMAIN, SERVICE_REASSIGN
+from .const import (
+    ATTR_CAT,
+    ATTR_CONFIG_ENTRY_ID,
+    ATTR_SAMPLES,
+    ATTR_WEIGHT,
+    CONF_CAT_OPTIONS,
+    CONF_PICTURE,
+    DOMAIN,
+    RECALIBRATE_SAMPLES,
+    SERVICE_REASSIGN,
+    SERVICE_RECALIBRATE,
+)
 from .coordinator import LitterCoordinator
 from .pictures import async_delete_pictures, async_register_static_path
 
-PLATFORMS = [Platform.SENSOR, Platform.EVENT]
+PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type LitterConfigEntry = ConfigEntry[LitterCoordinator]
@@ -26,10 +37,16 @@ REASSIGN_SCHEMA = vol.Schema(
         vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
     }
 )
+RECALIBRATE_SCHEMA = REASSIGN_SCHEMA.extend(
+    {
+        vol.Optional(ATTR_WEIGHT): vol.All(vol.Coerce(float), vol.Range(min=0.3, max=20)),
+        vol.Optional(ATTR_SAMPLES, default=RECALIBRATE_SAMPLES): vol.All(vol.Coerce(int), vol.Range(min=1, max=20)),
+    }
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    async def _reassign(call: ServiceCall) -> None:
+    def _coordinator(call: ServiceCall) -> LitterCoordinator:
         loaded = [
             e for e in hass.config_entries.async_entries(DOMAIN)
             if e.state is ConfigEntryState.LOADED
@@ -42,12 +59,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 "Specify config_entry_id when more than one litter box is set up"
                 if len(loaded) > 1 else "Litter box not found"
             )
+        return loaded[0].runtime_data
+
+    async def _reassign(call: ServiceCall) -> None:
         try:
-            loaded[0].runtime_data.reassign_last(call.data[ATTR_CAT])
+            _coordinator(call).reassign_last(call.data[ATTR_CAT])
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+
+    async def _recalibrate(call: ServiceCall) -> None:
+        try:
+            _coordinator(call).recalibrate(
+                call.data[ATTR_CAT], call.data.get(ATTR_WEIGHT), call.data[ATTR_SAMPLES]
+            )
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err
 
     hass.services.async_register(DOMAIN, SERVICE_REASSIGN, _reassign, schema=REASSIGN_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_RECALIBRATE, _recalibrate, schema=RECALIBRATE_SCHEMA)
     await async_register_static_path(hass)
     return True
 
