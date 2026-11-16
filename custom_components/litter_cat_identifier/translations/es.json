@@ -53,13 +53,15 @@
           "smoothing": "Velocidad de aprendizaje",
           "min_weight": "Ignorar lecturas por debajo de",
           "notify_targets": "Enviar notificaciones a",
-          "notify_unidentified": "Avisar de visitas no identificadas"
+          "notify_unidentified": "Avisar de visitas no identificadas",
+          "record_unidentified": "Registrar lecturas no identificadas"
         },
         "data_description": {
           "tolerance": "Las lecturas más alejadas que esto de todos los gatos se registran como no identificadas.",
           "smoothing": "Cuánto mueve cada visita el peso aprendido (0 = nunca, 1 = salta a la última lectura).",
           "min_weight": "Filtra lecturas con el arenero vacío y ruido.",
-          "notify_targets": "Servicios notify, p. ej. notify.mobile_app_mi_movil. En la app móvil se adjunta la foto."
+          "notify_targets": "Servicios notify, p. ej. notify.mobile_app_mi_movil. En la app móvil se adjunta la foto.",
+          "record_unidentified": "Desactivado: las lecturas que no coinciden con ningún gato se ignoran por completo (sin historial, contador, evento ni aviso)."
         }
       },
       "cat_select": {
@@ -118,6 +120,14 @@
     "button": {
       "recalibrate": {
         "name": "Recalibrar peso de {cat}"
+      },
+      "clear_unidentified": {
+        "name": "Borrar visitas no identificadas"
+      }
+    },
+    "switch": {
+      "show_unidentified": {
+        "name": "Mostrar visitas no identificadas"
       }
     }
   },
@@ -152,6 +162,16 @@
           "name": "Visitas",
           "description": "Cuántas de las últimas visitas con peso usar (5 por defecto)."
         },
+        "config_entry_id": {
+          "name": "Arenero",
+          "description": "Solo necesario con más de un arenero."
+        }
+      }
+    },
+    "clear_unidentified_visits": {
+      "name": "Borrar visitas no identificadas",
+      "description": "Quita las lecturas no identificadas del historial y pone a cero el contador de hoy.",
+      "fields": {
         "config_entry_id": {
           "name": "Arenero",
           "description": "Solo necesario con más de un arenero."

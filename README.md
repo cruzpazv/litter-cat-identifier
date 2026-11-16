@@ -24,6 +24,7 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - **Notifications** from the UI: every visit, unidentified visits, or "no visit in X hours" per cat (photo attached on the HA mobile app)
 - Unidentified readings come with a **likely reason**: a cat half inside right after its visit (and which cat), or a litter refill
 - **Recalibrate** a cat's weight from its latest readings with one button
+- Hide unidentified readings in the visits card, clear them with one button, or don't record them at all
 - **Ready-made dashboard cards**: cats, recent visits and weight history
 - Service to fix a misidentified visit
 - No cloud, no dependencies, config flow UI, English + Spanish
@@ -61,7 +62,7 @@ Settings → Devices & services → Add integration → **Litter Cat Identifier*
 
 **Options** (⚙ on the integration):
 
-- *General settings & notifications*: tolerance, learning rate, minimum weight, notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits.
+- *General settings & notifications*: tolerance, learning rate, minimum weight, record unidentified readings (on/off), notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits.
 - *Cat: photo & notifications*: photo, notify every visit, alert after N hours without a visit (0 = off; one alert until the cat visits again).
 
 **Photos**: in *Cat: photo & notifications*, tap **Photo** to pick an image from Media or upload one straight from your phone or computer. It's cropped square, resized to 512 px and stored by the integration — no File editor, no paths. Advanced: you can still type a `/local/...` path or an `https://` URL instead.
@@ -78,6 +79,8 @@ For a litter box named *Litter box* with cats *Luna* and *Simba*:
 | `sensor.litter_box_luna_visits_today` | Visits today (resets at midnight) |
 | `sensor.litter_box_luna_last_visit` | Timestamp of last visit |
 | `event.litter_box_visit` | Fires per visit; `event_type` = cat name or `unidentified` |
+| `switch.litter_box_show_unidentified_visits` | Show/hide unidentified readings in the *Recent visits* card (nothing is deleted) |
+| `button.litter_box_clear_unidentified_visits` | Removes unidentified readings from the log and resets today's count |
 | `button.litter_box_recalibrate_luna_weight` | Sets Luna's weight to the median of her last 5 weighed visits |
 
 Entity IDs follow your HA language; check Settings → Entities.
@@ -111,6 +114,8 @@ data:
   samples: 5      # or: weight: 4.2
 ```
 
+`litter_cat_identifier.clear_unidentified_visits` — removes unidentified readings from the visit log and resets today's count.
+
 ## Custom automations
 
 Built-in notifications cover the common cases. For anything else, use the event entity or the timestamps, e.g.:
@@ -134,7 +139,7 @@ The integration ships its own cards. Edit a dashboard → **Add card** → searc
 | Card | Shows |
 |---|---|
 | **Cats** (`custom:litter-cat-identifier-cats`) | Photo, name, weight, visits today and last visit of each cat |
-| **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens) |
+| **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens), and a 👁 button hides/shows them |
 | **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat |
 
 They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). Optional settings:

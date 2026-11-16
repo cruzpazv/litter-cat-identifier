@@ -37,6 +37,7 @@ from .const import (
     CONF_NOTIFY_TARGETS,
     CONF_NOTIFY_UNIDENTIFIED,
     CONF_NOTIFY_VISIT,
+    CONF_RECORD_UNIDENTIFIED,
     CONF_PICTURE,
     CONF_PICTURE_MEDIA,
     CONF_REMOVE_PICTURE,
@@ -182,6 +183,9 @@ class LitterCatOptionsFlow(OptionsFlow):
                         options=services, multiple=True, custom_value=True, mode=SelectSelectorMode.DROPDOWN
                     )
                 ),
+                vol.Required(
+                    CONF_RECORD_UNIDENTIFIED, default=opts.get(CONF_RECORD_UNIDENTIFIED, True)
+                ): BooleanSelector(),
                 vol.Required(
                     CONF_NOTIFY_UNIDENTIFIED, default=opts.get(CONF_NOTIFY_UNIDENTIFIED, False)
                 ): BooleanSelector(),

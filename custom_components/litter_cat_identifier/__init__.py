@@ -21,13 +21,14 @@ from .const import (
     DOMAIN,
     RECALIBRATE_SAMPLES,
     SERVICE_REASSIGN,
+    SERVICE_CLEAR_UNIDENTIFIED,
     SERVICE_RECALIBRATE,
 )
 from .coordinator import LitterCoordinator
 from .frontend import async_register_cards
 from .pictures import async_delete_pictures, async_register_static_path
 
-PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.SENSOR]
+PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.SENSOR, Platform.SWITCH]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type LitterConfigEntry = ConfigEntry[LitterCoordinator]
@@ -38,6 +39,7 @@ REASSIGN_SCHEMA = vol.Schema(
         vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
     }
 )
+CLEAR_SCHEMA = vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string})
 RECALIBRATE_SCHEMA = REASSIGN_SCHEMA.extend(
     {
         vol.Optional(ATTR_WEIGHT): vol.All(vol.Coerce(float), vol.Range(min=0.3, max=20)),
@@ -78,6 +80,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.services.async_register(DOMAIN, SERVICE_REASSIGN, _reassign, schema=REASSIGN_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_RECALIBRATE, _recalibrate, schema=RECALIBRATE_SCHEMA)
+
+    async def _clear(call: ServiceCall) -> None:
+        _coordinator(call).clear_unidentified()
+
+    hass.services.async_register(DOMAIN, SERVICE_CLEAR_UNIDENTIFIED, _clear, schema=CLEAR_SCHEMA)
     await async_register_static_path(hass)
     await async_register_cards(hass)
     return True

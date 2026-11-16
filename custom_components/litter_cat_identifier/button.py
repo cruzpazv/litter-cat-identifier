@@ -16,7 +16,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: LitterConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     c = entry.runtime_data
-    async_add_entities(RecalibrateButton(c, cat) for cat in c.cat_names)
+    async_add_entities([ClearUnidentifiedButton(c), *(RecalibrateButton(c, cat) for cat in c.cat_names)])
 
 
 class RecalibrateButton(LitterEntity, ButtonEntity):
@@ -35,3 +35,14 @@ class RecalibrateButton(LitterEntity, ButtonEntity):
             self.coordinator.recalibrate(self.cat)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
+
+
+class ClearUnidentifiedButton(LitterEntity, ButtonEntity):
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:broom"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator, "clear_unidentified")
+
+    async def async_press(self) -> None:
+        self.coordinator.clear_unidentified()

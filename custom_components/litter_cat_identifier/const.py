@@ -34,6 +34,7 @@ CONF_CAT = "cat"
 CONF_CAT_OPTIONS = "cat_options"
 CONF_NOTIFY_TARGETS = "notify_targets"
 CONF_NOTIFY_UNIDENTIFIED = "notify_unidentified"
+CONF_RECORD_UNIDENTIFIED = "record_unidentified"
 CONF_NOTIFY_VISIT = "notify_visit"
 CONF_ALERT_HOURS = "alert_hours"
 
@@ -41,6 +42,7 @@ STORAGE_VERSION = 1
 
 SERVICE_REASSIGN = "reassign_last_visit"
 SERVICE_RECALIBRATE = "recalibrate_weight"
+SERVICE_CLEAR_UNIDENTIFIED = "clear_unidentified_visits"
 ATTR_WEIGHT = "weight"
 ATTR_SAMPLES = "samples"
 

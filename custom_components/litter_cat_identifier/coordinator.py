@@ -36,6 +36,7 @@ from .const import (
     CONF_NOTIFY_TARGETS,
     CONF_NOTIFY_UNIDENTIFIED,
     CONF_NOTIFY_VISIT,
+    CONF_RECORD_UNIDENTIFIED,
     CONF_PICTURE,
     CONF_SMOOTHING,
     CONF_TOLERANCE,
@@ -89,6 +90,7 @@ class LitterCoordinator:
         self.min_weight = float(opts.get(CONF_MIN_WEIGHT, DEFAULT_MIN_WEIGHT))
         self.notify_targets: list[str] = list(opts.get(CONF_NOTIFY_TARGETS, []))
         self.notify_unidentified: bool = bool(opts.get(CONF_NOTIFY_UNIDENTIFIED, False))
+        self.record_unidentified: bool = bool(opts.get(CONF_RECORD_UNIDENTIFIED, True))
         cat_opts = opts.get(CONF_CAT_OPTIONS, {})
         self.cat_settings: dict[str, dict[str, Any]] = {
             n: {
@@ -300,6 +302,9 @@ class LitterCoordinator:
             self._reset_day()
 
         cat = identify(kg, self.learned, self.tolerance) if kg is not None else None
+        if cat is None and not self.record_unidentified:
+            _LOGGER.debug("Ignoring unidentified reading %s (recording disabled)", kg)
+            return
         if cat is not None and kg is not None:
             self.learned[cat] = round(learn(self.learned[cat], kg, self.smoothing), 3)
 
@@ -389,3 +394,12 @@ class LitterCoordinator:
         self._save()
         self._notify_entities()
         return self.learned[cat]
+
+    def clear_unidentified(self) -> int:
+        """Drop unidentified readings from the log and reset today's count."""
+        before = len(self.history)
+        self.history = [v for v in self.history if v["cat"] != UNIDENTIFIED]
+        self.visits_today[UNIDENTIFIED] = 0
+        self._save()
+        self._notify_entities()
+        return before - len(self.history)

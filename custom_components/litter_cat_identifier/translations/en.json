@@ -53,13 +53,15 @@
           "smoothing": "Learning rate",
           "min_weight": "Ignore readings below",
           "notify_targets": "Send notifications to",
-          "notify_unidentified": "Notify unidentified visits"
+          "notify_unidentified": "Notify unidentified visits",
+          "record_unidentified": "Record unidentified readings"
         },
         "data_description": {
           "tolerance": "Readings further than this from every cat are logged as unidentified.",
           "smoothing": "How much each visit moves the learned weight (0 = never, 1 = jump to the latest reading).",
           "min_weight": "Filters out empty-box readings and noise.",
-          "notify_targets": "Notify services, e.g. notify.mobile_app_my_phone. Photos are attached on mobile app targets."
+          "notify_targets": "Notify services, e.g. notify.mobile_app_my_phone. Photos are attached on mobile app targets.",
+          "record_unidentified": "Off: readings that don't match any cat are ignored completely (no log, count, event or notification)."
         }
       },
       "cat_select": {
@@ -118,6 +120,14 @@
     "button": {
       "recalibrate": {
         "name": "Recalibrate {cat} weight"
+      },
+      "clear_unidentified": {
+        "name": "Clear unidentified visits"
+      }
+    },
+    "switch": {
+      "show_unidentified": {
+        "name": "Show unidentified visits"
       }
     }
   },
@@ -152,6 +162,16 @@
           "name": "Visits",
           "description": "How many of the latest weighed visits to use (default 5)."
         },
+        "config_entry_id": {
+          "name": "Litter box",
+          "description": "Only needed with more than one litter box."
+        }
+      }
+    },
+    "clear_unidentified_visits": {
+      "name": "Clear unidentified visits",
+      "description": "Remove unidentified readings from the visit log and reset today's count.",
+      "fields": {
         "config_entry_id": {
           "name": "Litter box",
           "description": "Only needed with more than one litter box."

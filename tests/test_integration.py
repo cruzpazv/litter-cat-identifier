@@ -237,3 +237,50 @@ async def test_cards_served(hass: HomeAssistant, hass_client):
     resp = await client.get("/litter_cat_identifier_static/litter-cat-identifier-cards.js")
     assert resp.status == 200
     assert "litter-cat-identifier-cats" in await resp.text()
+
+
+async def test_clear_and_ignore_unidentified(hass: HomeAssistant):
+    entry = await _setup(hass)
+    await _visit(hass, 3.9, 1)
+    await _visit(hass, 9.0, 2)
+    await _visit(hass, 9.5, 3)
+    assert hass.states.get("sensor.taco_unidentified_visits_today").state == "2"
+
+    await hass.services.async_call(
+        "button", "press", {"entity_id": "button.taco_clear_unidentified_visits"}, blocking=True
+    )
+    hist = hass.states.get("sensor.taco_last_visit").attributes["history"]
+    assert [v["cat"] for v in hist] == ["Luna"]
+    assert hass.states.get("sensor.taco_unidentified_visits_today").state == "0"
+    assert hass.states.get("sensor.taco_luna_visits_today").state == "1"
+
+    # turn recording of unidentified readings off
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "settings"})
+    r = await hass.config_entries.options.async_configure(
+        r["flow_id"],
+        {"tolerance": 1.0, "smoothing": 0.2, "min_weight": 1.0, "notify_targets": [],
+         "record_unidentified": False, "notify_unidentified": False},
+    )
+    await hass.async_block_till_done()
+    await _visit(hass, 9.0, 4)
+    hist = hass.states.get("sensor.taco_last_visit").attributes["history"]
+    assert [v["cat"] for v in hist] == ["Luna"]
+    assert hass.states.get("sensor.taco_unidentified_visits_today").state == "0"
+    await _visit(hass, 5.5, 5)
+    assert hass.states.get("sensor.taco_last_visit").state == "Simba"
+
+    await hass.services.async_call(DOMAIN, "clear_unidentified_visits", {}, blocking=True)
+
+
+async def test_show_unidentified_switch(hass: HomeAssistant):
+    entry = await _setup(hass)
+    sw = "switch.taco_show_unidentified_visits"
+    assert hass.states.get(sw).state == "on"
+    await hass.services.async_call("switch", "turn_off", {"entity_id": sw}, blocking=True)
+    assert hass.states.get(sw).state == "off"
+    await _visit(hass, 9.0, 1)  # still recorded, only hidden in cards
+    assert hass.states.get("sensor.taco_unidentified_visits_today").state == "1"
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get(sw).state == "off"  # remembered

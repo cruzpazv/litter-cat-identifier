@@ -41,3 +41,11 @@ recalibrate_weight:
       selector:
         config_entry:
           integration: litter_cat_identifier
+
+clear_unidentified_visits:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: litter_cat_identifier

@@ -19,6 +19,7 @@ const I18N = {
     noWeight: "Visit detected without a weight",
     refill: "Probably a litter refill or a cat half inside",
     notFound: "No Litter Cat Identifier litter box found.",
+    hide: "Hide unidentified", show: (n) => `Show unidentified (${n} hidden)`,
     days: (d) => `${d} days`,
   },
   es: {
@@ -30,6 +31,7 @@ const I18N = {
     noWeight: "Visita detectada sin peso",
     refill: "Probablemente relleno de arena o un gato medio dentro",
     notFound: "No se encontró ningún arenero de Litter Cat Identifier.",
+    hide: "Ocultar no identificadas", show: (n) => `Mostrar no identificadas (${n} ocultas)`,
     days: (d) => `${d} días`,
   },
 };
@@ -63,6 +65,7 @@ function findBox(hass, deviceId) {
     device: dev,
     lastVisit: byKey("last_visit")[0],
     unidentified: byKey("unidentified_today")[0],
+    showSwitch: byKey("show_unidentified")[0],
     cats: Object.values(cats),
   };
 }
@@ -94,7 +97,7 @@ class BaseCard extends HTMLElement {
   }
   signature(hass, box) {
     if (!box) return "none";
-    const ids = [box.lastVisit, box.unidentified, ...box.cats.flatMap((c) => [c.weight, c.visits, c.last])];
+    const ids = [box.lastVisit, box.unidentified, box.showSwitch, ...box.cats.flatMap((c) => [c.weight, c.visits, c.last])];
     return ids.map((id) => hass.states[id]?.last_updated).join("|") + (hass.locale?.language || "");
   }
   shell(title, body) {
@@ -119,6 +122,10 @@ class BaseCard extends HTMLElement {
         .lci th { text-align: left; font-weight: 500; color: var(--secondary-text-color); padding: 4px 6px; }
         .lci td { padding: 6px; border-top: 1px solid var(--divider-color); }
         .lci .num { text-align: right; white-space: nowrap; }
+        .lci-bar { display: flex; justify-content: flex-end; margin: -4px 0 6px; }
+        .lci-toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.85em;
+                      color: var(--secondary-text-color); background: none; border: 0; padding: 2px 4px; }
+        .lci-toggle ha-icon { --mdc-icon-size: 18px; }
         .lci .q { cursor: help; color: var(--primary-color); font-weight: 600; margin-left: 4px; }
       </style>`;
   }
@@ -159,8 +166,17 @@ class VisitsCard extends BaseCard {
     const T = t(hass);
     const title = this._config.title ?? T.visits;
     if (!box || !box.lastVisit) return this.shell(title, `<div class="lci-empty">${T.notFound}</div>`);
-    const history = hass.states[box.lastVisit]?.attributes?.history || [];
-    if (!history.length) return this.shell(title, `<div class="lci-empty">${T.none}</div>`);
+    const all = hass.states[box.lastVisit]?.attributes?.history || [];
+    const sw = box.showSwitch && hass.states[box.showSwitch];
+    const hiding = sw?.state === "off";
+    const history = hiding ? all.filter((v) => v.cat !== "unidentified") : all;
+    const hiddenCount = all.filter((v) => v.cat === "unidentified").length;
+    const bar = sw && (hiddenCount || hiding)
+      ? `<div class="lci-bar"><button class="lci-toggle"><ha-icon icon="${hiding ? "mdi:eye-outline" : "mdi:eye-off-outline"}"></ha-icon>${hiding ? T.show(hiddenCount) : T.hide}</button></div>`
+      : "";
+    const wire = () => this.querySelector(".lci-toggle")?.addEventListener("click", () =>
+      hass.callService("switch", "toggle", { entity_id: box.showSwitch }));
+    if (!history.length) { this.shell(title, `${bar}<div class="lci-empty">${T.none}</div>`); return wire(); }
     const rows = history.slice(0, Number(this._config.count) || 8).map((v) => {
       let cat = esc(v.cat);
       if (v.cat === "unidentified") {
@@ -172,7 +188,8 @@ class VisitsCard extends BaseCard {
       const dur = typeof v.duration === "number" ? `${Math.round(v.duration)} s` : "–";
       return `<tr><td>${fmtTime(hass, v.time, true)}</td><td>${cat}</td><td class="num">${kg}</td><td class="num">${dur}</td></tr>`;
     });
-    this.shell(title, `<table><tr><th>${T.time}</th><th>${T.cat}</th><th class="num">${T.kg}</th><th class="num">${T.dur}</th></tr>${rows.join("")}</table>`);
+    this.shell(title, `${bar}<table><tr><th>${T.time}</th><th>${T.cat}</th><th class="num">${T.kg}</th><th class="num">${T.dur}</th></tr>${rows.join("")}</table>`);
+    wire();
     // touch screens have no hover: tap the (?) to read the reason
     this.querySelectorAll(".q").forEach((q) =>
       q.addEventListener("click", () => {
