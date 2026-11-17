@@ -149,6 +149,32 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={"count": str(len(self._cats) + 1)},
         )
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Swap the litter box sensors. Cats, learned weights and history are kept (stored per entry)."""
+        entry = self._get_reconfigure_entry()
+        sensor_keys = (CONF_WEIGHT_ENTITY, CONF_VISIT_ENTITY, CONF_DURATION_ENTITY)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            weight = user_input[CONF_WEIGHT_ENTITY]
+            if any(e.unique_id == weight and e.entry_id != entry.entry_id for e in self._async_current_entries()):
+                errors[CONF_WEIGHT_ENTITY] = "weight_in_use"
+            else:
+                data = {k: v for k, v in entry.data.items() if k not in sensor_keys}
+                data.update({k: user_input[k] for k in sensor_keys if user_input.get(k)})
+                return self.async_update_reload_and_abort(entry, unique_id=weight, data=data)
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_WEIGHT_ENTITY): SENSOR,
+                vol.Optional(CONF_VISIT_ENTITY): SENSOR,
+                vol.Optional(CONF_DURATION_ENTITY): SENSOR,
+            }
+        )
+        suggested = user_input or {k: entry.data[k] for k in sensor_keys if entry.data.get(k)}
+        return self.async_show_form(
+            step_id="reconfigure", data_schema=self.add_suggested_values_to_schema(schema, suggested), errors=errors
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry) -> OptionsFlow:

@@ -25,16 +25,27 @@
           "picture": "e.g. /local/cats/luna.jpg or https://…",
           "picture_media": "Pick a photo from Media or upload one from your phone/computer. It's cropped square and resized automatically."
         }
+      },
+      "reconfigure": {
+        "title": "Litter box sensors",
+        "description": "Change the sensors from your litter box integration, e.g. after switching to another integration. Cats, learned weights, photos and visit history are kept. Clear a field to stop using that sensor.",
+        "data": {
+          "weight_entity": "Cat weight sensor",
+          "visit_entity": "Visit counter sensor (recommended)",
+          "duration_entity": "Visit duration sensor"
+        }
       }
     },
     "error": {
       "invalid_name": "Name cannot be empty.",
       "duplicate_name": "That name is already used.",
       "invalid_image": "That file isn't an image Home Assistant can read.",
-      "not_local": "That media source can't be used; pick or upload the photo in Image upload or My media."
+      "not_local": "That media source can't be used; pick or upload the photo in Image upload or My media.",
+      "weight_in_use": "Another Litter Cat Identifier entry already uses this weight sensor."
     },
     "abort": {
-      "already_configured": "This weight sensor is already set up."
+      "already_configured": "This weight sensor is already set up.",
+      "reconfigure_successful": "Sensors updated."
     }
   },
   "options": {

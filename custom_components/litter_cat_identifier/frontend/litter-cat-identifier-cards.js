@@ -191,6 +191,15 @@ async function loadHaForm() {
   }
 }
 
+/** `default` values declared in an ha-form schema (grids included). */
+function schemaDefaults(schema, out = {}) {
+  for (const s of schema) {
+    if (s.schema) schemaDefaults(s.schema, out);
+    else if (s.default !== undefined) out[s.name] = s.default;
+  }
+  return out;
+}
+
 function makeEditor(schemaFn) {
   return class extends HTMLElement {
     setConfig(config) { this._config = { ...config }; this._render(); }
@@ -203,15 +212,22 @@ function makeEditor(schemaFn) {
         this._form.computeLabel = (s) => T.l[s.name] || s.name;
         this._form.addEventListener("value-changed", (ev) => {
           const config = { ...ev.detail.value };
-          for (const k of Object.keys(config)) if (config[k] === "" || config[k] === undefined) delete config[k];
+          for (const k of Object.keys(config)) {
+            // Drop empty values and values equal to the default, so the YAML stays minimal.
+            if (config[k] === "" || config[k] === undefined || this._defaults[k] === config[k]) delete config[k];
+          }
           this._config = config;
           this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
         });
         this.appendChild(this._form);
       }
+      const schema = schemaFn(T, this._hass, this._config);
+      this._defaults = schemaDefaults(schema);
       this._form.hass = this._hass;
-      this._form.schema = schemaFn(T, this._hass, this._config);
-      this._form.data = this._config;
+      this._form.schema = schema;
+      // ha-form does not apply `default` itself: without this a toggle that defaults to on (e.g. Show title)
+      // is drawn off, and the first tap seems to do nothing.
+      this._form.data = { ...this._defaults, ...this._config };
     }
   };
 }

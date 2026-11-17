@@ -284,3 +284,45 @@ async def test_show_unidentified_switch(hass: HomeAssistant):
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     assert hass.states.get(sw).state == "off"  # remembered
+
+
+async def test_reconfigure_keeps_cats_and_history(hass: HomeAssistant):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = await _setup(hass)
+    await _visit(hass, 3.9, 1)
+    assert hass.states.get("sensor.taco_luna_visits_today").state == "1"
+
+    # another entry already owns this weight sensor → refused
+    MockConfigEntry(domain=DOMAIN, unique_id="sensor.taken", data={}).add_to_hass(hass)
+    r = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_RECONFIGURE, "entry_id": entry.entry_id}
+    )
+    assert r["type"] is FlowResultType.FORM and r["step_id"] == "reconfigure"
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"weight_entity": "sensor.taken"})
+    assert r["errors"] == {"weight_entity": "weight_in_use"}
+
+    # switch to the new litter box integration's sensors, dropping the duration sensor
+    hass.states.async_set("sensor.new_weight", "0", {"unit_of_measurement": "kg"})
+    hass.states.async_set("sensor.new_visits", "5")
+    r = await hass.config_entries.flow.async_configure(
+        r["flow_id"], {"weight_entity": "sensor.new_weight", "visit_entity": "sensor.new_visits"}
+    )
+    assert r["type"] is FlowResultType.ABORT and r["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
+    assert entry.unique_id == "sensor.new_weight"
+    assert entry.data["weight_entity"] == "sensor.new_weight"
+    assert entry.data["visit_entity"] == "sensor.new_visits"
+    assert "duration_entity" not in entry.data
+    assert [c["name"] for c in entry.data["cats"]] == ["Luna", "Simba"]
+
+    # history and learned weights survived; the new sensors drive visits now
+    assert hass.states.get("sensor.taco_luna_visits_today").state == "1"
+    hass.states.async_set("sensor.new_weight", "5.4", {"unit_of_measurement": "kg"})
+    hass.states.async_set("sensor.new_visits", "6")
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=6))
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.taco_simba_visits_today").state == "1"
+    hist = hass.states.get("sensor.taco_last_visit").attributes["history"]
+    assert [v["cat"] for v in hist] == ["Simba", "Luna"]

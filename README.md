@@ -59,6 +59,10 @@ Settings → Devices & services → Add integration → **Litter Cat Identifier*
 1. Name + sensors from your litter box: cat weight (required), visit counter (recommended), visit duration (optional).
 2. Add each cat: name, approximate weight and (optionally) a photo picked or uploaded from Media.
 
+**Changing the sensors later** (e.g. after moving the litter box to another integration): ⋮ on the integration → **Reconfigure**. Cats, learned weights, photos and visit history are kept.
+
+**UAHPET litter box** with the [UAHPET integration](https://github.com/cruzpazv/uahpet-homeassistant): weight = *Last cat weight*, visit counter = *Visits today*, duration = *Last visit duration*. Don't use *Live weight*: it drops back to 0 when the cat leaves.
+
 **Options** (⚙ on the integration):
 
 - *General settings & notifications*: tolerance, learning rate, minimum weight, record unidentified readings (on/off), notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits.

@@ -25,16 +25,27 @@
           "picture": "p. ej. /local/gatos/luna.jpg o https://…",
           "picture_media": "Elige una foto de Medios o súbela desde el móvil/PC. Se recorta cuadrada y se reduce automáticamente."
         }
+      },
+      "reconfigure": {
+        "title": "Sensores del arenero",
+        "description": "Cambia los sensores de la integración del arenero, por ejemplo si pasas a otra integración. Se conservan los gatos, sus pesos aprendidos, las fotos y el historial de visitas. Vacía un campo para dejar de usar ese sensor.",
+        "data": {
+          "weight_entity": "Sensor de peso del gato",
+          "visit_entity": "Sensor contador de visitas (recomendado)",
+          "duration_entity": "Sensor de duración de la visita"
+        }
       }
     },
     "error": {
       "invalid_name": "El nombre no puede estar vacío.",
       "duplicate_name": "Ese nombre ya está en uso.",
       "invalid_image": "Ese archivo no es una imagen que Home Assistant pueda leer.",
-      "not_local": "No se puede usar ese origen; elige o sube la foto en Image upload o My media."
+      "not_local": "No se puede usar ese origen; elige o sube la foto en Image upload o My media.",
+      "weight_in_use": "Otra entrada de Litter Cat Identifier ya usa este sensor de peso."
     },
     "abort": {
-      "already_configured": "Este sensor de peso ya está configurado."
+      "already_configured": "Este sensor de peso ya está configurado.",
+      "reconfigure_successful": "Sensores actualizados."
     }
   },
   "options": {
