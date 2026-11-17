@@ -25,7 +25,7 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - Unidentified readings come with a **likely reason**: a cat half inside right after its visit (and which cat), or a litter refill
 - **Recalibrate** a cat's weight from its latest readings with one button
 - Hide unidentified readings in the visits card, clear them with one button, or don't record them at all
-- **Ready-made dashboard cards**: cats, recent visits and weight history
+- **Ready-made dashboard cards** with visual editors: cats, recent visits, weight history and litter box controls (clean now)
 - Service to fix a misidentified visit
 - No cloud, no dependencies, config flow UI, English + Spanish
 
@@ -134,28 +134,24 @@ actions:
 
 ## Dashboard cards
 
-The integration ships its own cards. Edit a dashboard → **Add card** → search **Litter Cat Identifier**:
+The integration ships its own cards. Edit a dashboard → **Add card** → search **Litter Cat Identifier**. Every card has a **visual editor**; resize them in the editor's *Layout* tab.
 
-| Card | Shows |
-|---|---|
-| **Cats** (`custom:litter-cat-identifier-cats`) | Photo, name, weight, visits today and last visit of each cat |
-| **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens), and a 👁 button hides/shows them |
-| **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat |
+| Card | Shows | Editor options |
+|---|---|---|
+| **Cats** (`custom:litter-cat-identifier-cats`) | Photo, name, weight, visits today and last visit of each cat | cats per row, which details to show |
+| **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens), and a 👁 button hides/shows them | number of visits, weight/duration columns, hide button |
+| **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat | days, period (hour/day/week/month), line or bars, average/min/max |
+| **Litter box** (`custom:litter-cat-identifier-box`) | **Clean now** button, automatic-cleaning switch, today's visits per cat | cleaning entity (switch, button or script from your litter box integration), auto-clean switch, confirmation |
 
-They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). Optional settings:
+They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). All cards also accept `title` and `device_id` (only needed with more than one litter box).
+
+YAML example:
 
 ```yaml
-type: custom:litter-cat-identifier-cats
-columns: 2          # cats per row
-# title: My cats
-# device_id: ...    # only with more than one litter box
----
-type: custom:litter-cat-identifier-visits
-count: 8
----
-type: custom:litter-cat-identifier-weight
-days: 7            # up to 14 days: hourly points; more: daily
-# period: hour      # force hour | day | week
+type: custom:litter-cat-identifier-box
+clean_entity: switch.my_litter_box_start
+auto_clean_entity: switch.my_litter_box_auto_clean
+confirm: true
 ```
 
 Prefer building your own? See [`examples/dashboard.yaml`](examples/dashboard.yaml).
@@ -164,6 +160,10 @@ Prefer building your own? See [`examples/dashboard.yaml`](examples/dashboard.yam
 
 - Cat names and the weight sensor are fixed after setup; to change them, remove and re-add the integration (learned weights are reset).
 - Identification is weight-only. Cats within a few hundred grams of each other can't be told apart reliably.
+
+## About
+
+Built with the help of AI (Claude by Anthropic). Code is reviewed and covered by automated tests (Hassfest, HACS validation and unit/integration tests); please open an issue if something doesn't work as expected.
 
 ## License
 
