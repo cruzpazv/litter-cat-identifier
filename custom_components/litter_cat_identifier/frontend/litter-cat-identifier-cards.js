@@ -1,7 +1,8 @@
 /*
  * Litter Cat Identifier – dashboard cards.
  * Served by the integration and loaded automatically; no HACS frontend install needed.
- *   custom:litter-cat-identifier-cats     photo, name, weight, visits today, last visit
+ *   custom:litter-cat-identifier-cat      one cat: photo, name, weight, visits today, last visit
+ *   custom:litter-cat-identifier-cats     several cats together
  *   custom:litter-cat-identifier-visits   recent visits with reasons for unidentified readings
  *   custom:litter-cat-identifier-weight   weight history per cat (statistics graph)
  *   custom:litter-cat-identifier-box      clean now, auto-clean, today's summary
@@ -32,7 +33,10 @@ const I18N = {
       period: "Period", chart_type: "Chart type", stat: "Value", clean_entity: "Cleaning entity (switch, button or script)",
       auto_clean_entity: "Automatic cleaning switch (optional)", confirm: "Ask before cleaning", show_today: "Show today's summary",
       hour: "Hour", day: "Day", week: "Week", month: "Month", line: "Line", bar: "Bars", mean: "Average", min: "Minimum", max: "Maximum",
+      show_title: "Show title", cat: "Cat", cats: "Cats to show (empty = all)", layout: "Layout", horizontal: "Horizontal", vertical: "Vertical",
+      show_photo: "Show photo", avatar_size: "Photo size (px)", color: "Icon colour (when there's no photo)",
     },
+    pickCat: "Pick a cat in the card editor.",
   },
   es: {
     cats: "Gatos", visits: "Últimas visitas", weight: "Peso", box: "Arenero", none: "Sin visitas todavía",
@@ -54,7 +58,10 @@ const I18N = {
       period: "Periodo", chart_type: "Tipo de gráfica", stat: "Valor", clean_entity: "Entidad de limpieza (interruptor, botón o script)",
       auto_clean_entity: "Interruptor de limpieza automática (opcional)", confirm: "Preguntar antes de limpiar", show_today: "Mostrar resumen de hoy",
       hour: "Hora", day: "Día", week: "Semana", month: "Mes", line: "Línea", bar: "Barras", mean: "Media", min: "Mínimo", max: "Máximo",
+      show_title: "Mostrar título", cat: "Gato", cats: "Gatos a mostrar (vacío = todos)", layout: "Disposición", horizontal: "Horizontal", vertical: "Vertical",
+      show_photo: "Mostrar foto", avatar_size: "Tamaño de la foto (px)", color: "Color del icono (si no hay foto)",
     },
+    pickCat: "Elige un gato en el editor de la tarjeta.",
   },
 };
 
@@ -113,9 +120,13 @@ const STYLE = `
   .lci-cats { display: grid; grid-template-columns: repeat(var(--lci-cols, 2), minmax(0, 1fr)); gap: 12px; }
   .lci-cat { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px;
              background: var(--secondary-background-color); cursor: pointer; min-width: 0; }
-  .lci-avatar { width: 52px; height: 52px; border-radius: 50%; flex: none; object-fit: cover;
+  .lci-cat.vertical { flex-direction: column; text-align: center; }
+  .lci-cat.vertical > div { width: 100%; }
+  .lci-single .lci-cat { background: none; padding: 0; }
+  .lci-avatar { width: var(--lci-avatar, 52px); height: var(--lci-avatar, 52px); border-radius: 50%; flex: none; object-fit: cover;
                 display: flex; align-items: center; justify-content: center;
-                background: var(--primary-background-color); color: var(--primary-color); }
+                background: var(--primary-background-color); color: var(--lci-color, var(--primary-color)); }
+  .lci-avatar ha-icon { --mdc-icon-size: calc(var(--lci-avatar, 52px) * 0.55); }
   .lci-name { font-weight: 600; font-size: 1.05em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lci-kg { font-size: 1.3em; font-weight: 500; }
   .lci-sub { color: var(--secondary-text-color); font-size: 0.85em; }
@@ -160,12 +171,26 @@ class BaseCard extends HTMLElement {
     return ids.map((id) => hass.states[id]?.last_updated).join("|") + (hass.locale?.language || "");
   }
   shell(title, body) {
+    if (this._config && this._config.show_title === false) title = "";
     this.innerHTML = `<ha-card ${title ? `header="${esc(title)}"` : ""}><div class="lci">${body}</div></ha-card><style>${STYLE}</style>`;
   }
   getCardSize() { return 3; }
 }
 
 /* ---------- visual editor (ha-form) ---------- */
+// ha-form is lazy-loaded by the frontend; make sure it exists before an editor opens.
+async function loadHaForm() {
+  if (customElements.get("ha-form")) return;
+  try {
+    const helpers = await window.loadCardHelpers();
+    const card = await helpers.createCardElement({ type: "entities", entities: [] });
+    await card?.constructor?.getConfigElement?.();
+  } catch (e) { /* the editor still opens; HA falls back to YAML if needed */ }
+  if (!customElements.get("ha-form")) {
+    await Promise.race([customElements.whenDefined("ha-form"), new Promise((r) => setTimeout(r, 3000))]);
+  }
+}
+
 function makeEditor(schemaFn) {
   return class extends HTMLElement {
     setConfig(config) { this._config = { ...config }; this._render(); }
@@ -185,7 +210,7 @@ function makeEditor(schemaFn) {
         this.appendChild(this._form);
       }
       this._form.hass = this._hass;
-      this._form.schema = schemaFn(T);
+      this._form.schema = schemaFn(T, this._hass, this._config);
       this._form.data = this._config;
     }
   };
@@ -194,52 +219,96 @@ function makeEditor(schemaFn) {
 const sel = (T, options) => ({ select: { mode: "dropdown", options: options.map((o) => ({ value: o, label: T.l[o] || o })) } });
 const COMMON = () => [
   { name: "device_id", selector: { device: { integration: DOMAIN } } },
-  { name: "title", selector: { text: {} } },
+  { type: "grid", name: "", schema: [
+    { name: "title", selector: { text: {} } },
+    { name: "show_title", selector: { boolean: {} }, default: true },
+  ] },
 ];
+const catNames = (hass, config) => (findBox(hass, config?.device_id)?.cats || []).map((c) => c.name);
+const avatarSchema = (T) => [{ type: "grid", name: "", schema: [
+  { name: "layout", selector: sel(T, ["horizontal", "vertical"]) },
+  { name: "avatar_size", selector: { number: { min: 24, max: 200, step: 4, mode: "box", unit_of_measurement: "px" } } },
+] }];
+const showSchema = () => [{ type: "grid", name: "", schema: [
+  { name: "show_photo", selector: { boolean: {} }, default: true },
+  { name: "show_weight", selector: { boolean: {} }, default: true },
+  { name: "show_visits", selector: { boolean: {} }, default: true },
+  { name: "show_last", selector: { boolean: {} }, default: true },
+] }];
+
+/** One cat tile, shared by the Cats and Cat cards. */
+function catTile(hass, T, c, cat) {
+  const w = hass.states[cat.weight];
+  const pic = on(c.show_photo) && w?.attributes?.entity_picture;
+  const kg = w && !isNaN(parseFloat(w.state)) ? `${parseFloat(w.state).toFixed(2)} kg` : "–";
+  const visits = hass.states[cat.visits]?.state ?? "0";
+  const last = hass.states[cat.last]?.state;
+  const lastTxt = last && !["unknown", "unavailable"].includes(last) ? `${T.last} ${fmtTime(hass, last)}` : T.never;
+  const sub = [on(c.show_visits) ? T.today(esc(visits)) : null, on(c.show_last) ? lastTxt : null].filter(Boolean).join(" · ");
+  const avatar = pic
+    ? `<img class="lci-avatar" src="${esc(pic)}" alt="">`
+    : `<div class="lci-avatar"><ha-icon icon="mdi:cat"></ha-icon></div>`;
+  const style = [c.avatar_size ? `--lci-avatar:${Number(c.avatar_size)}px` : "", c.color ? `--lci-color:${esc(c.color)}` : ""].join(";");
+  return `<div class="lci-cat ${c.layout === "vertical" ? "vertical" : ""}" style="${style}" data-entity="${esc(cat.weight)}">${avatar}
+    <div style="min-width:0"><div class="lci-name">${esc(cat.name)}</div>
+    ${on(c.show_weight) ? `<div class="lci-kg">${kg}</div>` : ""}${sub ? `<div class="lci-sub">${sub}</div>` : ""}</div></div>`;
+}
 
 /* ---------- cats ---------- */
 class CatsCard extends BaseCard {
   static getStubConfig() { return { columns: 2 }; }
-  static getConfigElement() { return document.createElement("litter-cat-identifier-cats-editor"); }
+  static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-cats-editor"); }
   render(hass, box) {
     const T = t(hass), c = this._config;
     const title = c.title ?? T.cats;
     if (!box) return this.shell(title, `<div class="lci-empty">${T.notFound}</div>`);
-    const tiles = box.cats.map((cat) => {
-      const w = hass.states[cat.weight];
-      const pic = w?.attributes?.entity_picture;
-      const kg = w && !isNaN(parseFloat(w.state)) ? `${parseFloat(w.state).toFixed(2)} kg` : "–";
-      const visits = hass.states[cat.visits]?.state ?? "0";
-      const last = hass.states[cat.last]?.state;
-      const lastTxt = last && !["unknown", "unavailable"].includes(last) ? `${T.last} ${fmtTime(hass, last)}` : T.never;
-      const sub = [on(c.show_visits) ? T.today(esc(visits)) : null, on(c.show_last) ? lastTxt : null].filter(Boolean).join(" · ");
-      const avatar = pic
-        ? `<img class="lci-avatar" src="${esc(pic)}" alt="">`
-        : `<div class="lci-avatar"><ha-icon icon="mdi:cat"></ha-icon></div>`;
-      return `<div class="lci-cat" data-entity="${esc(cat.weight)}">${avatar}
-        <div style="min-width:0"><div class="lci-name">${esc(cat.name)}</div>
-        ${on(c.show_weight) ? `<div class="lci-kg">${kg}</div>` : ""}${sub ? `<div class="lci-sub">${sub}</div>` : ""}</div></div>`;
-    });
+    const wanted = Array.isArray(c.cats) && c.cats.length ? c.cats : null;
+    const tiles = box.cats.filter((cat) => !wanted || wanted.includes(cat.name)).map((cat) => catTile(hass, T, c, cat));
     this.shell(title, `<div class="lci-cats" style="--lci-cols:${Number(c.columns) || 2}">${tiles.join("")}</div>`);
     this.querySelectorAll(".lci-cat").forEach((el) => el.addEventListener("click", () => moreInfo(this, el.dataset.entity)));
   }
   getCardSize() { return 2; }
   getGridOptions() { return { columns: 12, min_columns: 4 }; }
 }
-const CatsEditor = makeEditor(() => [
+const CatsEditor = makeEditor((T, hass, config) => [
   ...COMMON(),
-  { name: "columns", selector: { number: { min: 1, max: 4, mode: "box" } } },
-  { type: "grid", name: "", schema: [
-    { name: "show_weight", selector: { boolean: {} }, default: true },
-    { name: "show_visits", selector: { boolean: {} }, default: true },
-    { name: "show_last", selector: { boolean: {} }, default: true },
-  ] },
+  { name: "cats", selector: { select: { multiple: true, mode: "list", options: catNames(hass, config) } } },
+  { name: "columns", selector: { number: { min: 1, max: 6, mode: "box" } } },
+  ...avatarSchema(T),
+  ...showSchema(),
+]);
+
+/* ---------- single cat ---------- */
+class CatCard extends BaseCard {
+  static getStubConfig(hass) {
+    const first = hass && findBox(hass)?.cats[0];
+    return { cat: first?.name || "", show_title: false };
+  }
+  static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-cat-editor"); }
+  render(hass, box) {
+    const T = t(hass), c = this._config;
+    const title = c.title ?? c.cat ?? "";
+    if (!box) return this.shell(title, `<div class="lci-empty">${T.notFound}</div>`);
+    const cat = box.cats.find((x) => x.name === c.cat);
+    if (!cat) return this.shell(title, `<div class="lci-empty">${T.pickCat}</div>`);
+    this.shell(title, `<div class="lci-single">${catTile(hass, T, c, cat)}</div>`);
+    this.querySelector(".lci-cat")?.addEventListener("click", () => moreInfo(this, cat.weight));
+  }
+  getCardSize() { return 2; }
+  getGridOptions() { return { columns: 6, min_columns: 3 }; }
+}
+const CatEditor = makeEditor((T, hass, config) => [
+  { name: "cat", required: true, selector: { select: { mode: "dropdown", options: catNames(hass, config) } } },
+  ...COMMON(),
+  ...avatarSchema(T),
+  { name: "color", selector: { text: {} } },
+  ...showSchema(),
 ]);
 
 /* ---------- visits ---------- */
 class VisitsCard extends BaseCard {
   static getStubConfig() { return { count: 8 }; }
-  static getConfigElement() { return document.createElement("litter-cat-identifier-visits-editor"); }
+  static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-visits-editor"); }
   render(hass, box) {
     const T = t(hass), c = this._config;
     const title = c.title ?? T.visits;
@@ -295,7 +364,7 @@ const VisitsEditor = makeEditor(() => [
 /* ---------- weight ---------- */
 class WeightCard extends BaseCard {
   static getStubConfig() { return { days: 7 }; }
-  static getConfigElement() { return document.createElement("litter-cat-identifier-weight-editor"); }
+  static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-weight-editor"); }
   async render(hass, box) {
     const T = t(hass), c = this._config;
     const days = Number(c.days) || 7;
@@ -310,11 +379,14 @@ class WeightCard extends BaseCard {
       chart_type: c.chart_type || "line",
       entities: box.cats.map((cat) => ({ entity: cat.weight, name: cat.name })),
     };
+    if (c.grid_options) cfg.grid_options = c.grid_options;
     const key = JSON.stringify(cfg);
     if (this._graphKey !== key) {
       this._graphKey = key;
       const helpers = await window.loadCardHelpers();
       this._graph = helpers.createCardElement(cfg);
+      this._graph.style.height = "100%";
+      if (this._layout) this._graph.layout = this._layout;
       this.innerHTML = "";
       this.appendChild(this._graph);
     }
@@ -329,8 +401,12 @@ class WeightCard extends BaseCard {
     if (this._graph) this._graph.hass = hass;
   }
   get hass() { return this._hass; }
+  // sections dashboards set layout="grid" and size the card; pass that on so the chart fills it
+  set layout(v) { this._layout = v; if (this._graph) this._graph.layout = v; }
+  get layout() { return this._layout; }
+  connectedCallback() { this.style.display = "block"; this.style.height = "100%"; }
   getCardSize() { return 5; }
-  getGridOptions() { return { columns: 12, min_columns: 6 }; }
+  getGridOptions() { return { columns: 12, min_columns: 4, rows: 5, min_rows: 3 }; }
 }
 const WeightEditor = makeEditor((T) => [
   ...COMMON(),
@@ -345,7 +421,7 @@ const WeightEditor = makeEditor((T) => [
 /* ---------- litter box ---------- */
 class BoxCard extends BaseCard {
   static getStubConfig() { return { confirm: true }; }
-  static getConfigElement() { return document.createElement("litter-cat-identifier-box-editor"); }
+  static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-box-editor"); }
   signature(hass, box) {
     const c = this._config || {};
     return super.signature(hass, box) + [c.clean_entity, c.auto_clean_entity].map((id) => id && hass.states[id]?.last_updated).join("|");
@@ -395,6 +471,8 @@ const BoxEditor = makeEditor(() => [
 const define = (tag, cls) => { if (!customElements.get(tag)) customElements.define(tag, cls); };
 define("litter-cat-identifier-cats", CatsCard);
 define("litter-cat-identifier-cats-editor", CatsEditor);
+define("litter-cat-identifier-cat", CatCard);
+define("litter-cat-identifier-cat-editor", CatEditor);
 define("litter-cat-identifier-visits", VisitsCard);
 define("litter-cat-identifier-visits-editor", VisitsEditor);
 define("litter-cat-identifier-weight", WeightCard);
@@ -404,7 +482,8 @@ define("litter-cat-identifier-box-editor", BoxEditor);
 
 window.customCards = window.customCards || [];
 for (const [type, name, description] of [
-  ["litter-cat-identifier-cats", "Litter Cat Identifier – Cats", "Photo, name, weight, visits today and last visit for each cat."],
+  ["litter-cat-identifier-cat", "Litter Cat Identifier – Cat", "One cat: photo, name, weight, visits today and last visit."],
+  ["litter-cat-identifier-cats", "Litter Cat Identifier – Cats", "All (or some) cats together: photo, name, weight, visits today and last visit."],
   ["litter-cat-identifier-visits", "Litter Cat Identifier – Recent visits", "Latest litter box visits, with the likely reason for unidentified readings."],
   ["litter-cat-identifier-weight", "Litter Cat Identifier – Weight", "Weight history of each cat."],
   ["litter-cat-identifier-box", "Litter Cat Identifier – Litter box", "Clean now, automatic cleaning and today's visits."],

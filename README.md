@@ -9,7 +9,6 @@
 [![Hassfest](https://img.shields.io/github/actions/workflow/status/cruzpazv/litter-cat-identifier/hassfest.yml?branch=main&label=Hassfest&logo=github)](https://github.com/cruzpazv/litter-cat-identifier/actions/workflows/hassfest.yml)
 [![HACS validation](https://img.shields.io/github/actions/workflow/status/cruzpazv/litter-cat-identifier/hacs.yml?branch=main&label=HACS%20validation&logo=github)](https://github.com/cruzpazv/litter-cat-identifier/actions/workflows/hacs.yml)
 [![License](https://img.shields.io/github/license/cruzpazv/litter-cat-identifier?color=yellow)](LICENSE)
-[![Installs](https://img.shields.io/badge/dynamic/json?label=Installs&color=olive&url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.litter_cat_identifier.total)](https://analytics.home-assistant.io/)
 [![Version](https://img.shields.io/badge/dynamic/json?label=VERSION&color=blue&url=https%3A%2F%2Fraw.githubusercontent.com%2Fcruzpazv%2Flitter-cat-identifier%2Fmain%2Fcustom_components%2Flitter_cat_identifier%2Fmanifest.json&query=%24.version)](custom_components/litter_cat_identifier/manifest.json)
 [![Home Assistant](https://img.shields.io/badge/dynamic/json?label=HOME%20ASSISTANT&color=41BDF5&prefix=%3E%3D&url=https%3A%2F%2Fraw.githubusercontent.com%2Fcruzpazv%2Flitter-cat-identifier%2Fmain%2Fhacs.json&query=%24.homeassistant)](https://www.home-assistant.io/)
 
@@ -25,7 +24,7 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - Unidentified readings come with a **likely reason**: a cat half inside right after its visit (and which cat), or a litter refill
 - **Recalibrate** a cat's weight from its latest readings with one button
 - Hide unidentified readings in the visits card, clear them with one button, or don't record them at all
-- **Ready-made dashboard cards** with visual editors: cats, recent visits, weight history and litter box controls (clean now)
+- **Ready-made dashboard cards** with visual editors: one cat or several, recent visits, weight history and litter box controls (clean now)
 - Service to fix a misidentified visit
 - No cloud, no dependencies, config flow UI, English + Spanish
 
@@ -138,12 +137,13 @@ The integration ships its own cards. Edit a dashboard → **Add card** → searc
 
 | Card | Shows | Editor options |
 |---|---|---|
-| **Cats** (`custom:litter-cat-identifier-cats`) | Photo, name, weight, visits today and last visit of each cat | cats per row, which details to show |
+| **Cat** (`custom:litter-cat-identifier-cat`) | One cat: photo, name, weight, visits today and last visit | cat, horizontal/vertical layout, photo size, icon colour, which details to show |
+| **Cats** (`custom:litter-cat-identifier-cats`) | Several cats together | which cats, cats per row, layout, photo size, which details to show |
 | **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens), and a 👁 button hides/shows them | number of visits, weight/duration columns, hide button |
-| **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat | days, period (hour/day/week/month), line or bars, average/min/max |
+| **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat; the chart fills the card size | days, period (hour/day/week/month), line or bars, average/min/max |
 | **Litter box** (`custom:litter-cat-identifier-box`) | **Clean now** button, automatic-cleaning switch, today's visits per cat | cleaning entity (switch, button or script from your litter box integration), auto-clean switch, confirmation |
 
-They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). All cards also accept `title` and `device_id` (only needed with more than one litter box).
+They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). All cards also accept `title`, `show_title: false` (hide the header) and `device_id` (only needed with more than one litter box).
 
 YAML example:
 
