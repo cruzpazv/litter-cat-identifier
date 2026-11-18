@@ -3,11 +3,11 @@
     "step": {
       "user": {
         "title": "Litter box",
-        "description": "Pick the sensors your litter box integration exposes. The visit counter is optional but strongly recommended: it detects every visit, even when two in a row report the same weight.",
+        "description": "Pick the entities your litter box integration exposes. Best: a visit event that carries the weight and duration (UAHPET: *Visit*). Otherwise a visit counter: it detects every visit, even when two in a row report the same weight. The weight sensor must hold the weight of the visit, not the live scale.",
         "data": {
           "name": "Name",
           "weight_entity": "Cat weight sensor",
-          "visit_entity": "Visit counter sensor (recommended)",
+          "visit_entity": "Visit counter or visit event (recommended)",
           "duration_entity": "Visit duration sensor"
         }
       },
@@ -31,7 +31,7 @@
         "description": "Change the sensors from your litter box integration, e.g. after switching to another integration. Cats, learned weights, photos and visit history are kept. Clear a field to stop using that sensor.",
         "data": {
           "weight_entity": "Cat weight sensor",
-          "visit_entity": "Visit counter sensor (recommended)",
+          "visit_entity": "Visit counter or visit event (recommended)",
           "duration_entity": "Visit duration sensor"
         }
       }

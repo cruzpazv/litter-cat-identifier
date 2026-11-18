@@ -61,7 +61,11 @@ Settings → Devices & services → Add integration → **Litter Cat Identifier*
 
 **Changing the sensors later** (e.g. after moving the litter box to another integration): ⋮ on the integration → **Reconfigure**. Cats, learned weights, photos and visit history are kept.
 
-**UAHPET litter box** with the [UAHPET integration](https://github.com/cruzpazv/uahpet-homeassistant): weight = *Last cat weight*, visit counter = *Visits today*, duration = *Last visit duration*. Don't use *Live weight*: it drops back to 0 when the cat leaves.
+**UAHPET litter box** with the [UAHPET integration](https://github.com/cruzpazv/uahpet-homeassistant): visit = the *Visit* event (it carries the weight and duration of each visit), weight = *Last cat weight*, duration = *Last visit duration*.
+
+The weight sensor must hold the weight **of the visit**. A live scale (e.g. the Tuya integration's *cat weight*, UAHPET's *Live weight*) drops while the cat leaves, so visits get a partial weight and the wrong cat.
+
+**Visit source**: a visit **event** entity (attributes `weight` and `duration`) is the most reliable. With a visit **counter**, the weight is taken from the weight sensor; if the counter ticks before the weight arrives, the visit waits up to 60 s for it.
 
 **Options** (⚙ on the integration):
 
@@ -143,8 +147,9 @@ The integration ships its own cards. Edit a dashboard → **Add card** → searc
 |---|---|---|
 | **Cat** (`custom:litter-cat-identifier-cat`) | One cat: photo, name, weight, visits today and last visit | cat, horizontal/vertical layout, photo size, icon colour, which details to show |
 | **Cats** (`custom:litter-cat-identifier-cats`) | Several cats together | which cats, cats per row, layout, photo size, which details to show |
-| **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens), and a 👁 button hides/shows them | number of visits, weight/duration columns, hide button |
+| **Recent visits** (`custom:litter-cat-identifier-visits`) | Latest visits; unidentified ones show a **(?)** with the likely reason (hover, or tap on touch screens), and a 👁 button hides/shows them. As a **collapsible list** it shows a few visits, *Show more* expands it and *Whole history* loads every stored visit (up to 2000) | visits shown, collapsible, visits when expanded, weight/duration columns, hide button |
 | **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat; the chart fills the card size | days, period (hour/day/week/month), line or bars, average/min/max |
+| **Visits per day** (`custom:litter-cat-identifier-visits-chart`) | Bars per day with **one bar per cat** (and grey for unidentified). Tap a cat in the legend to hide it, tap a day for its numbers, switch between 7 and 30 days | days, show unidentified, `colors` (YAML: `colors: {Luna: "#e15759"}`) |
 | **Litter box** (`custom:litter-cat-identifier-box`) | **Clean now** button, automatic-cleaning switch, today's visits per cat | cleaning entity (switch, button or script from your litter box integration), auto-clean switch, confirmation |
 
 They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). All cards also accept `title`, `show_title: false` (hide the header) and `device_id` (only needed with more than one litter box).
@@ -157,6 +162,15 @@ clean_entity: switch.my_litter_box_start
 auto_clean_entity: switch.my_litter_box_auto_clean
 confirm: true
 ```
+
+```yaml
+type: custom:litter-cat-identifier-visits
+count: 5
+collapsible: true
+expanded_count: 30
+```
+
+The whole visit history is also available to your own cards and scripts through the websocket command `litter_cat_identifier/history` (`device_id`, `offset`, `limit`; newest first).
 
 Prefer building your own? See [`examples/dashboard.yaml`](examples/dashboard.yaml).
 

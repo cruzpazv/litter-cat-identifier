@@ -47,14 +47,17 @@ from .const import (
     DEFAULT_SMOOTHING,
     DEFAULT_TOLERANCE,
     DOMAIN,
-    HISTORY_SIZE,
+    STORED_HISTORY,
     INACTIVITY_CHECK,
     PARTIAL_WINDOW,
     RECALIBRATE_SAMPLES,
     STORAGE_VERSION,
     UNIDENTIFIED,
     WEIGHT_DEBOUNCE,
+    WEIGHT_BEFORE_COUNTER,
     WEIGHT_FRESHNESS,
+    WEIGHT_SETTLE,
+    WEIGHT_WAIT,
 )
 from .logic import classify_unidentified, identify, learn, median, parse_float, to_kg
 from .messages import text
@@ -113,6 +116,7 @@ class LitterCoordinator:
         self._last_weight_at = None
         self._pending_weight: float | None = None
         self._cancel_timer: Callable[[], None] | None = None
+        self._cancel_wait: Callable[[], None] | None = None  # counter ticked, waiting for the weight
         self._unsubs: list[Callable[[], None]] = []
 
     def picture(self, cat: str | None) -> str | None:
@@ -124,7 +128,7 @@ class LitterCoordinator:
         data = await self._store.async_load() or {}
         stored = data.get("learned", {})
         self.learned = {n: float(stored.get(n, self._initial[n])) for n in self.cat_names}
-        self.history = data.get("history", [])[:HISTORY_SIZE]
+        self.history = data.get("history", [])[:STORED_HISTORY]
         self.last_visit = {n: data.get("last_visit", {}).get(n) for n in self.cat_names}
         self.alerted = {n: bool(data.get("alerted", {}).get(n, False)) for n in self.cat_names}
         self._day = data.get("day", "")
@@ -174,6 +178,9 @@ class LitterCoordinator:
         if self._cancel_timer:
             self._cancel_timer()
             self._cancel_timer = None
+        if self._cancel_wait:
+            self._cancel_wait()
+            self._cancel_wait = None
         await self._store.async_save(self._as_dict())
 
     # ---------- helpers ----------
@@ -263,7 +270,12 @@ class LitterCoordinator:
         self._last_weight = kg
         self._last_weight_at = dt_util.utcnow()
         if self.visit_entity:
-            return  # counter mode: the counter decides when a visit happened
+            # Counter mode: the counter decides when a visit happened. If it ticked before
+            # the weight arrived, this is the visit's weight: record it (shortly, for the duration).
+            if self._cancel_wait:
+                self._cancel_wait()
+                self._cancel_wait = async_call_later(self.hass, WEIGHT_SETTLE, self._flush_counter)
+            return
         self._pending_weight = kg
         if self._cancel_timer:
             self._cancel_timer()
@@ -281,13 +293,38 @@ class LitterCoordinator:
         old, new = event.data["old_state"], event.data["new_state"]
         if old is None or new is None:
             return
+        if new.domain == "event":
+            self._on_visit_event(old, new)
+            return
         old_v, new_v = parse_float(old.state), parse_float(new.state)
         if old_v is None or new_v is None or new_v <= old_v:
             return  # daily reset or unavailable, not a visit
-        async_call_later(self.hass, COUNTER_DELAY, self._flush_counter)
+        if self._cancel_wait:  # previous visit never got its weight: record it now
+            self._flush_counter(None)
+        fresh = self._last_weight_at and (dt_util.utcnow() - self._last_weight_at).total_seconds() <= WEIGHT_BEFORE_COUNTER
+        if fresh:
+            async_call_later(self.hass, COUNTER_DELAY, self._flush_counter)
+        else:
+            # Some litter boxes send the visit weight after the counter: wait for it.
+            self._cancel_wait = async_call_later(self.hass, WEIGHT_WAIT, self._flush_counter)
+
+    @callback
+    def _on_visit_event(self, old, new) -> None:
+        """A visit event entity (e.g. UAHPET) carries the visit's weight and duration together."""
+        if old.state == STATE_UNAVAILABLE or new.state in (STATE_UNKNOWN, STATE_UNAVAILABLE) or new.state == old.state:
+            return  # restored after a restart / reload, not a new visit
+        attrs = new.attributes
+        kg = parse_float(attrs.get("weight"))
+        kg = to_kg(kg, attrs.get(ATTR_UNIT_OF_MEASUREMENT) or "kg") if kg is not None else None
+        if kg is None or kg < self.min_weight:
+            kg = self._read_kg(self.hass.states.get(self.weight_entity))
+        self._record(kg, parse_float(attrs.get("duration")))
 
     @callback
     def _flush_counter(self, _now) -> None:
+        if self._cancel_wait:
+            self._cancel_wait()
+            self._cancel_wait = None
         kg = self._read_kg(self.hass.states.get(self.weight_entity))
         if kg is None and self._last_weight_at is not None:
             age = (dt_util.utcnow() - self._last_weight_at).total_seconds()
@@ -297,7 +334,7 @@ class LitterCoordinator:
 
     # ---------- core ----------
 
-    def _record(self, kg: float | None) -> None:
+    def _record(self, kg: float | None, duration: float | None = None) -> None:
         if self._day != self._today():
             self._reset_day()
 
@@ -329,13 +366,13 @@ class LitterCoordinator:
             "time": now,
             "cat": key,
             "weight": round(kg, 2) if kg is not None else None,
-            "duration": self._read_duration(),
+            "duration": duration if duration is not None else self._read_duration(),
         }
         if reason:
             visit["reason"] = reason
             visit["likely_cat"] = likely
         self.history.insert(0, visit)
-        del self.history[HISTORY_SIZE:]
+        del self.history[STORED_HISTORY:]
 
         _LOGGER.debug("Visit recorded: %s", visit)
         self._save()

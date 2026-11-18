@@ -12,7 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import LitterConfigEntry
-from .const import UNIDENTIFIED
+from .const import HISTORY_SIZE, UNIDENTIFIED
 from .entity import LitterEntity
 
 
@@ -54,7 +54,7 @@ class LastVisitSensor(LitterEntity, SensorEntity):
             "duration": last.get("duration"),
             "reason": last.get("reason"),
             "likely_cat": last.get("likely_cat"),
-            "history": h,
+            "history": h[:HISTORY_SIZE],
         }
 
 

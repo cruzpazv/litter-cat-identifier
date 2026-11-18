@@ -3,11 +3,11 @@
     "step": {
       "user": {
         "title": "Arenero",
-        "description": "Elige los sensores que expone la integración de tu arenero. El contador de visitas es opcional pero muy recomendable: detecta todas las visitas, aunque dos seguidas den el mismo peso.",
+        "description": "Elige las entidades de la integración del arenero. Lo mejor: un evento de visita que traiga el peso y la duración (UAHPET: *Visita*). Si no, un contador de visitas: detecta cada visita aunque dos seguidas den el mismo peso. El sensor de peso debe guardar el peso de la visita, no el de la báscula en tiempo real.",
         "data": {
           "name": "Nombre",
           "weight_entity": "Sensor de peso del gato",
-          "visit_entity": "Contador de visitas (recomendado)",
+          "visit_entity": "Contador de visitas o evento de visita (recomendado)",
           "duration_entity": "Sensor de duración de la visita"
         }
       },
@@ -31,7 +31,7 @@
         "description": "Cambia los sensores de la integración del arenero, por ejemplo si pasas a otra integración. Se conservan los gatos, sus pesos aprendidos, las fotos y el historial de visitas. Vacía un campo para dejar de usar ese sensor.",
         "data": {
           "weight_entity": "Sensor de peso del gato",
-          "visit_entity": "Sensor contador de visitas (recomendado)",
+          "visit_entity": "Contador de visitas o evento de visita (recomendado)",
           "duration_entity": "Sensor de duración de la visita"
         }
       }

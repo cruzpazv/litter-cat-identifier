@@ -326,3 +326,74 @@ async def test_reconfigure_keeps_cats_and_history(hass: HomeAssistant):
     assert hass.states.get("sensor.taco_simba_visits_today").state == "1"
     hist = hass.states.get("sensor.taco_last_visit").attributes["history"]
     assert [v["cat"] for v in hist] == ["Simba", "Luna"]
+
+
+async def test_visit_event_source(hass: HomeAssistant):
+    """A visit event entity (UAHPET) gives the weight and duration of each visit directly."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry  # noqa: F401
+
+    hass.states.async_set("sensor.box_live", "0", {"unit_of_measurement": "kg"})
+    hass.states.async_set("event.box_visit", "unknown", {"event_type": None})
+    r = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
+    r = await hass.config_entries.flow.async_configure(
+        r["flow_id"], {"name": "TACo", "weight_entity": "sensor.box_live", "visit_entity": "event.box_visit"}
+    )
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"name": "Luna", "weight": 3.8, "add_another": True})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"name": "Simba", "weight": 5.5, "add_another": False})
+    await hass.async_block_till_done()
+
+    # live scale reads a partial 3.1 kg while the cat leaves: must not be used
+    hass.states.async_set("sensor.box_live", "3.1", {"unit_of_measurement": "kg"})
+    hass.states.async_set("event.box_visit", "2026-11-18T10:00:00+00:00", {"event_type": "visit", "weight": 5.4, "duration": 41})
+    await hass.async_block_till_done()
+    hist = hass.states.get("sensor.taco_last_visit").attributes["history"]
+    assert hist[0]["cat"] == "Simba" and hist[0]["weight"] == 5.4 and hist[0]["duration"] == 41
+
+    # restored state after a reload (unavailable -> same timestamp) is not a new visit
+    hass.states.async_set("event.box_visit", "unavailable", {})
+    hass.states.async_set("event.box_visit", "2026-11-18T10:00:00+00:00", {"event_type": "visit", "weight": 5.4, "duration": 41})
+    await hass.async_block_till_done()
+    assert len(hass.states.get("sensor.taco_last_visit").attributes["history"]) == 1
+
+
+async def test_counter_before_weight(hass: HomeAssistant, freezer):
+    """The counter ticks before the visit weight arrives: wait for it instead of using the old one."""
+    entry = await _setup(hass)
+    await _visit(hass, 3.9, 1)  # Luna
+    freezer.tick(timedelta(minutes=5))
+    hass.states.async_set(COUNTER, "2")  # counter first...
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=10))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert len(hass.states.get("sensor.taco_last_visit").attributes["history"]) == 1  # still waiting
+    hass.states.async_set(WEIGHT, "5.4", {"unit_of_measurement": "kg"})  # ...then Simba's weight
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=3))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    hist = hass.states.get("sensor.taco_last_visit").attributes["history"]
+    assert [v["cat"] for v in hist] == ["Simba", "Luna"] and hist[0]["weight"] == 5.4
+    assert entry
+
+
+async def test_history_websocket(hass: HomeAssistant, hass_ws_client):
+    """More than 20 visits are stored; the sensor shows 20, the websocket API returns them all."""
+    from homeassistant.helpers import device_registry as dr
+
+    entry = await _setup(hass)
+    for i in range(1, 26):
+        await _visit(hass, 3.9 if i % 2 else 5.4, i)
+    attrs = hass.states.get("sensor.taco_last_visit").attributes
+    assert len(attrs["history"]) == 20
+
+    device = next(d for d in dr.async_get(hass).devices.values() if entry.entry_id in d.config_entries)
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": f"{DOMAIN}/history", "device_id": device.id})
+    res = await client.receive_json()
+    assert res["success"] and res["result"]["total"] == 25 and len(res["result"]["history"]) == 25
+    await client.send_json({"id": 2, "type": f"{DOMAIN}/history", "offset": 20, "limit": 3})
+    res = await client.receive_json()
+    assert [v["cat"] for v in res["result"]["history"]] == ["Luna", "Simba", "Luna"]  # visits 5, 4, 3
+    await client.send_json({"id": 3, "type": f"{DOMAIN}/history", "device_id": "nope"})
+    assert (await client.receive_json())["error"]["code"] == "not_found"

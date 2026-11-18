@@ -20,9 +20,13 @@ DEFAULT_MIN_WEIGHT = 1.0  # kg
 
 UNIDENTIFIED = "unidentified"
 
-HISTORY_SIZE = 20
+HISTORY_SIZE = 20  # visits in the last-visit sensor attributes
+STORED_HISTORY = 2000  # visits kept on disk (cards fetch them over the websocket API)
 WEIGHT_DEBOUNCE = 60  # s, weight-only mode
 COUNTER_DELAY = 5  # s, wait for the weight sensor after the counter ticks
+WEIGHT_BEFORE_COUNTER = 20  # s, a weight this recent belongs to the visit the counter reports
+WEIGHT_WAIT = 60  # s, otherwise wait this long for the weight to arrive after the counter
+WEIGHT_SETTLE = 2  # s, after the late weight arrives (the duration may follow)
 WEIGHT_FRESHNESS = 600  # s, how old a cached weight may be in counter mode
 
 INACTIVITY_CHECK = 300  # s

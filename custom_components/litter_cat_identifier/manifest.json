@@ -10,12 +10,13 @@
   "config_flow": true,
   "dependencies": [
     "http",
-    "media_source"
+    "media_source",
+    "websocket_api"
   ],
   "documentation": "https://github.com/cruzpazv/litter-cat-identifier",
   "integration_type": "helper",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/cruzpazv/litter-cat-identifier/issues",
   "requirements": [],
-  "version": "0.7.1"
+  "version": "0.8.0"
 }

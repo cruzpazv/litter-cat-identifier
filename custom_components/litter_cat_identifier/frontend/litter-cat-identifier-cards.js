@@ -5,6 +5,7 @@
  *   custom:litter-cat-identifier-cats     several cats together
  *   custom:litter-cat-identifier-visits   recent visits with reasons for unidentified readings
  *   custom:litter-cat-identifier-weight   weight history per cat (statistics graph)
+ *   custom:litter-cat-identifier-visits-chart  visits per day, one bar per cat
  *   custom:litter-cat-identifier-box      clean now, auto-clean, today's summary
  * All cards auto-detect the litter box; set `device_id` when you have more than one.
  * Every card has a visual editor.
@@ -28,15 +29,18 @@ const I18N = {
     autoClean: "Automatic cleaning", todayTitle: "Today", noClean: "Pick the cleaning entity in the card editor.",
     l: {
       device_id: "Litter box", title: "Title", columns: "Cats per row", show_weight: "Show weight",
-      show_visits: "Show visits today", show_last: "Show last visit", count: "Number of visits",
+      show_visits: "Show visits today", show_last: "Show last visit", count: "Visits shown",
       show_duration: "Show duration", show_toggle: "Show hide/show button", days: "Days to show",
       period: "Period", chart_type: "Chart type", stat: "Value", clean_entity: "Cleaning entity (switch, button or script)",
       auto_clean_entity: "Automatic cleaning switch (optional)", confirm: "Ask before cleaning", show_today: "Show today's summary",
       hour: "Hour", day: "Day", week: "Week", month: "Month", line: "Line", bar: "Bars", mean: "Average", min: "Minimum", max: "Maximum",
       show_title: "Show title", cat: "Cat", cats: "Cats to show (empty = all)", layout: "Layout", horizontal: "Horizontal", vertical: "Vertical",
       show_photo: "Show photo", avatar_size: "Photo size (px)", color: "Icon colour (when there's no photo)",
+      show_unidentified: "Show unidentified visits", collapsible: "Collapsible list", expanded_count: "Visits when expanded",
     },
     pickCat: "Pick a cat in the card editor.",
+    more: "Show more", less: "Show less", all: (n) => (n ? `Whole history (${n})` : "Whole history"),
+    visitsChart: "Visits per day", loading: "Loading…", lastDays: (n) => `Last ${n} days (tap a day for details)`, perDay: (v) => `${v}/day`,
   },
   es: {
     cats: "Gatos", visits: "Últimas visitas", weight: "Peso", box: "Arenero", none: "Sin visitas todavía",
@@ -53,15 +57,18 @@ const I18N = {
     autoClean: "Limpieza automática", todayTitle: "Hoy", noClean: "Elige la entidad de limpieza en el editor de la tarjeta.",
     l: {
       device_id: "Arenero", title: "Título", columns: "Gatos por fila", show_weight: "Mostrar peso",
-      show_visits: "Mostrar visitas de hoy", show_last: "Mostrar última visita", count: "Número de visitas",
+      show_visits: "Mostrar visitas de hoy", show_last: "Mostrar última visita", count: "Visitas visibles",
       show_duration: "Mostrar duración", show_toggle: "Mostrar botón ocultar/mostrar", days: "Días a mostrar",
       period: "Periodo", chart_type: "Tipo de gráfica", stat: "Valor", clean_entity: "Entidad de limpieza (interruptor, botón o script)",
       auto_clean_entity: "Interruptor de limpieza automática (opcional)", confirm: "Preguntar antes de limpiar", show_today: "Mostrar resumen de hoy",
       hour: "Hora", day: "Día", week: "Semana", month: "Mes", line: "Línea", bar: "Barras", mean: "Media", min: "Mínimo", max: "Máximo",
       show_title: "Mostrar título", cat: "Gato", cats: "Gatos a mostrar (vacío = todos)", layout: "Disposición", horizontal: "Horizontal", vertical: "Vertical",
       show_photo: "Mostrar foto", avatar_size: "Tamaño de la foto (px)", color: "Color del icono (si no hay foto)",
+      show_unidentified: "Mostrar visitas no identificadas", collapsible: "Lista desplegable", expanded_count: "Visitas al desplegar",
     },
     pickCat: "Elige un gato en el editor de la tarjeta.",
+    more: "Ver más", less: "Ver menos", all: (n) => (n ? `Todo el historial (${n})` : "Todo el historial"),
+    visitsChart: "Visitas por día", loading: "Cargando…", lastDays: (n) => `Últimos ${n} días (toca un día para ver el detalle)`, perDay: (v) => `${v}/día`,
   },
 };
 
@@ -147,6 +154,23 @@ const STYLE = `
   .lci-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
   .lci-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .lci-chip { padding: 4px 10px; border-radius: 16px; background: var(--secondary-background-color); font-size: .9em; }
+  .lci-foot { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+  .lci-scroll { max-height: 420px; overflow-y: auto; }
+  .lci-chart-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .lci-rng { font: inherit; font-size: .85em; border: 0; cursor: pointer; padding: 3px 10px; border-radius: 14px; margin-left: 4px;
+             background: var(--secondary-background-color); color: var(--primary-text-color); }
+  .lci-rng.sel { background: var(--primary-color); color: var(--text-primary-color, #fff); }
+  .lci-chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .lci-chart text { fill: var(--secondary-text-color); font-size: 10px; text-anchor: middle; }
+  .lci-chart text.max { text-anchor: start; } .lci-chart text.x.today { fill: var(--primary-text-color); font-weight: 600; }
+  .lci-chart text.v { font-size: 9px; fill: var(--primary-text-color); }
+  .lci-chart .axis { stroke: var(--divider-color); }
+  .lci-chart .hit { fill: transparent; cursor: pointer; } .lci-chart .hit.picked { fill: var(--secondary-background-color); }
+  .lci-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .lci-leg { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: .9em; cursor: pointer; border: 0;
+             padding: 4px 10px; border-radius: 16px; background: var(--secondary-background-color); color: var(--primary-text-color); }
+  .lci-leg.off { opacity: .45; } .lci-leg .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .lci-leg .tot { color: var(--secondary-text-color); font-size: .9em; }
 `;
 
 class BaseCard extends HTMLElement {
@@ -325,23 +349,62 @@ const CatEditor = makeEditor((T, hass, config) => [
 class VisitsCard extends BaseCard {
   static getStubConfig() { return { count: 8 }; }
   static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-visits-editor"); }
+
+  /** How many visits the current view wants (Infinity = whole history). */
+  _wanted() {
+    const c = this._config, count = Number(c.count) || 8;
+    if (!on(c.collapsible, false)) return count;
+    if (this._mode === "all") return Infinity;
+    if (this._mode === "expanded") return Math.max(count, Number(c.expanded_count) || 20);
+    return count;
+  }
+
+  signature(hass, box) {
+    return `${super.signature(hass, box)}|${this._mode}|${this._fullVersion || 0}`;
+  }
+
+  /** The sensor only carries the latest 20 visits: fetch more from the integration when asked for. */
+  async _fetch(hass, box, limit, key) {
+    this._fullKey = key;
+    try {
+      const res = await hass.callWS({ type: `${DOMAIN}/history`, device_id: box.device, limit: limit === Infinity ? 0 : limit });
+      if (this._fullKey !== key) return;
+      this._full = res.history;
+      this._total = res.total;
+    } catch (e) {
+      this._full = null;
+    }
+    this._fullVersion = (this._fullVersion || 0) + 1;
+    this._sig = null;
+    if (this._hass) this.hass = this._hass;
+  }
+
   render(hass, box) {
     const T = t(hass), c = this._config;
     const title = c.title ?? T.visits;
     if (!box || !box.lastVisit) return this.shell(title, `<div class="lci-empty">${T.notFound}</div>`);
-    const all = hass.states[box.lastVisit]?.attributes?.history || [];
+    const latest = hass.states[box.lastVisit]?.attributes?.history || [];
+    const wanted = this._wanted();
+    let all = latest, loading = false;
+    if (wanted > latest.length && latest.length >= 20 && hass.callWS) {
+      // a new visit or a different view invalidates what was fetched
+      const key = `${hass.states[box.lastVisit]?.last_updated}|${wanted}`;
+      if (this._fullKey === key && this._full) all = this._full;
+      else { loading = true; if (this._fullKey !== key) this._fetch(hass, box, wanted, key); }
+    }
     const sw = box.showSwitch && hass.states[box.showSwitch];
     const hiding = sw?.state === "off";
     const history = hiding ? all.filter((v) => v.cat !== "unidentified") : all;
     const hiddenCount = all.filter((v) => v.cat === "unidentified").length;
     const bar = on(c.show_toggle) && sw && (hiddenCount || hiding)
-      ? `<div class="lci-bar"><button class="lci-toggle"><ha-icon icon="${hiding ? "mdi:eye-outline" : "mdi:eye-off-outline"}"></ha-icon>${hiding ? T.show(hiddenCount) : T.hide}</button></div>`
+      ? `<div class="lci-bar"><button class="lci-toggle lci-hide"><ha-icon icon="${hiding ? "mdi:eye-outline" : "mdi:eye-off-outline"}"></ha-icon>${hiding ? T.show(hiddenCount) : T.hide}</button></div>`
       : "";
-    const wire = () => this.querySelector(".lci-toggle")?.addEventListener("click", () =>
+    const wire = () => this.querySelector(".lci-hide")?.addEventListener("click", () =>
       hass.callService("switch", "toggle", { entity_id: box.showSwitch }));
     if (!history.length) { this.shell(title, `${bar}<div class="lci-empty">${T.none}</div>`); return wire(); }
     const showKg = on(c.show_weight), showDur = on(c.show_duration);
-    const rows = history.slice(0, Number(c.count) || 8).map((v) => {
+    const shown = history.slice(0, wanted);
+    const rows = shown.map((v) => {
       let cat = esc(v.cat);
       if (v.cat === "unidentified") {
         const tip = v.reason === "partial_after_visit" ? T.partial(v.likely_cat || "?")
@@ -353,8 +416,28 @@ class VisitsCard extends BaseCard {
       return `<tr><td>${fmtTime(hass, v.time, true)}</td><td>${cat}</td>${showKg ? `<td class="num">${kg}</td>` : ""}${showDur ? `<td class="num">${dur}</td>` : ""}</tr>`;
     });
     const head = `<tr><th>${T.time}</th><th>${T.cat}</th>${showKg ? `<th class="num">${T.kg}</th>` : ""}${showDur ? `<th class="num">${T.dur}</th>` : ""}</tr>`;
-    this.shell(title, `${bar}<table>${head}${rows.join("")}</table>`);
+
+    // collapsible footer: show more / whole history / show less
+    let foot = "";
+    if (on(c.collapsible, false)) {
+      const count = Number(c.count) || 8, expanded = Math.max(count, Number(c.expanded_count) || 20);
+      const mode = this._mode || "collapsed";
+      const btn = (m, icon, label) => `<button class="lci-toggle lci-more" data-mode="${m}"><ha-icon icon="${icon}"></ha-icon>${esc(label)}</button>`;
+      const btns = [];
+      if (mode === "collapsed" && expanded > count && (history.length > count || latest.length >= 20)) btns.push(btn("expanded", "mdi:chevron-down", T.more));
+      if (mode !== "all" && (history.length > shown.length || latest.length >= 20)) btns.push(btn("all", "mdi:history", T.all(mode === "all" ? null : this._total)));
+      if (mode !== "collapsed") btns.push(btn("collapsed", "mdi:chevron-up", T.less));
+      if (loading) btns.unshift(`<span class="lci-sub">${T.loading}</span>`);
+      foot = btns.length ? `<div class="lci-foot">${btns.join("")}</div>` : "";
+    }
+    const scroll = shown.length > 20 ? " lci-scroll" : "";
+    this.shell(title, `${bar}<div class="lci-table${scroll}"><table>${head}${rows.join("")}</table></div>${foot}`);
     wire();
+    this.querySelectorAll(".lci-more").forEach((el) => el.addEventListener("click", () => {
+      this._mode = el.dataset.mode;
+      this._sig = null;
+      this.hass = this._hass;
+    }));
     // touch screens have no hover: tap the (?) to read the reason
     this.querySelectorAll(".q").forEach((q) =>
       q.addEventListener("click", () => {
@@ -369,7 +452,11 @@ class VisitsCard extends BaseCard {
 }
 const VisitsEditor = makeEditor(() => [
   ...COMMON(),
-  { name: "count", selector: { number: { min: 1, max: 20, mode: "box" } } },
+  { type: "grid", name: "", schema: [
+    { name: "count", selector: { number: { min: 1, max: 50, mode: "box" } } },
+    { name: "collapsible", selector: { boolean: {} }, default: false },
+  ] },
+  { name: "expanded_count", selector: { number: { min: 5, max: 500, mode: "box" } } },
   { type: "grid", name: "", schema: [
     { name: "show_weight", selector: { boolean: {} }, default: true },
     { name: "show_duration", selector: { boolean: {} }, default: true },
@@ -434,6 +521,143 @@ const WeightEditor = makeEditor((T) => [
   ] },
 ]);
 
+/* ---------- visits per day, one bar per cat ---------- */
+const PALETTE = ["#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#b07aa1", "#edc948", "#76b7b2", "#ff9da7"];
+const GREY = "#9e9e9e";
+const dayStart = (offset) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + offset); return d; };
+
+class VisitsChartCard extends BaseCard {
+  static getStubConfig() { return { days: 7 }; }
+  static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-visits-chart-editor"); }
+
+  _range() { return this._days || Number(this._config.days) || 7; }
+
+  signature(hass, box) {
+    const days = this._range();
+    if (box && hass.callWS && (!this._fetchedAt || Date.now() - this._fetchedAt > 300000 || this._fetchedDays !== days)) {
+      this._fetch(hass, box, days);
+    }
+    return `${super.signature(hass, box)}|${this._version || 0}|${days}|${this._picked}|${[...(this._hidden || [])].join(",")}`;
+  }
+
+  _ids(box) {
+    const ids = box.cats.map((c) => c.visits).filter(Boolean);
+    if (on(this._config.show_unidentified) && box.unidentified) ids.push(box.unidentified);
+    return ids;
+  }
+
+  async _fetch(hass, box, days) {
+    this._fetchedAt = Date.now();
+    this._fetchedDays = days;
+    try {
+      this._stats = await hass.callWS({
+        type: "recorder/statistics_during_period", start_time: dayStart(-(days - 1)).toISOString(),
+        statistic_ids: this._ids(box), period: "day", types: ["change"],
+      });
+    } catch (e) { this._stats = {}; }
+    this._version = (this._version || 0) + 1;
+    this._sig = null;
+    if (this._hass) this.hass = this._hass;
+  }
+
+  /** [{name, color, id, values[days]}]: statistics per day, today's live value from the sensor. */
+  _series(hass, box, days) {
+    const T = t(hass), colors = this._config.colors || {};
+    const list = box.cats.map((c, i) => ({ name: c.name, id: c.visits, color: colors[c.name] || PALETTE[i % PALETTE.length] }));
+    if (on(this._config.show_unidentified) && box.unidentified) list.push({ name: T.unidentified, id: box.unidentified, color: GREY, unknown: true });
+    const keys = Array.from({ length: days }, (_, i) => dayStart(i - (days - 1)).toDateString());
+    for (const s of list) {
+      const byDay = {};
+      for (const row of (this._stats || {})[s.id] || []) {
+        const d = new Date(typeof row.start === "number" ? row.start : Date.parse(row.start));
+        byDay[d.toDateString()] = row.change || 0;
+      }
+      s.values = keys.map((k) => byDay[k] || 0);
+      const live = parseFloat(hass.states[s.id]?.state);
+      if (!isNaN(live)) s.values[days - 1] = live;
+    }
+    return list;
+  }
+
+  _chart(hass, series, days) {
+    const W = 320, H = 140, top = 14;
+    const shown = series.filter((s) => !(this._hidden || new Set()).has(s.name));
+    const max = Math.max(1, ...shown.flatMap((s) => s.values));
+    const slot = W / days, group = slot * 0.82, bw = shown.length ? group / shown.length : 0;
+    const lang = hass.locale?.language || hass.language;
+    let bars = "", labels = "", hits = "";
+    for (let i = 0; i < days; i++) {
+      const x0 = slot * i + (slot - group) / 2;
+      shown.forEach((s, j) => {
+        const v = s.values[i], h = (v / max) * (H - top);
+        if (v > 0) {
+          bars += `<rect x="${(x0 + j * bw + 0.5).toFixed(2)}" y="${(H - h).toFixed(2)}" width="${Math.max(1, bw - 1).toFixed(2)}" height="${h.toFixed(2)}" rx="${Math.min(3, bw / 3).toFixed(2)}" fill="${esc(s.color)}"/>`;
+          if (days <= 7 && bw >= 9) bars += `<text class="v" x="${(x0 + j * bw + bw / 2).toFixed(2)}" y="${(H - h - 3).toFixed(2)}">${v}</text>`;
+        }
+      });
+      const d = dayStart(i - (days - 1));
+      if (days <= 7 || i % 5 === (days - 1) % 5) {
+        const label = days <= 7 ? d.toLocaleDateString(lang, { weekday: "short" }) : d.getDate();
+        labels += `<text class="x ${i === days - 1 ? "today" : ""}" x="${(slot * i + slot / 2).toFixed(2)}" y="${H + 14}">${esc(label)}</text>`;
+      }
+      hits += `<rect class="hit ${this._picked === i ? "picked" : ""}" data-day="${i}" x="${(slot * i).toFixed(2)}" y="0" width="${slot.toFixed(2)}" height="${H}"/>`;
+    }
+    return `<svg class="lci-chart" viewBox="0 0 ${W} ${H + 20}" role="img">
+      <line class="axis" x1="0" x2="${W}" y1="${H + 0.5}" y2="${H + 0.5}"/>
+      <text class="max" x="0" y="9">${max}</text>${hits}${bars}${labels}</svg>`;
+  }
+
+  render(hass, box) {
+    const T = t(hass), c = this._config, days = this._range();
+    const title = c.title ?? T.visitsChart;
+    if (!box || !box.cats.length) return this.shell(title, `<div class="lci-empty">${T.notFound}</div>`);
+    if (!this._stats) return this.shell(title, `<div class="lci-empty">${T.loading}</div>`);
+    const series = this._series(hass, box, days);
+    const hidden = this._hidden || new Set();
+    const lang = hass.locale?.language || hass.language;
+    let summary;
+    if (this._picked !== undefined && this._picked !== null) {
+      const d = dayStart(this._picked - (days - 1)).toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "short" });
+      summary = `${d}: ${series.filter((s) => !hidden.has(s.name)).map((s) => `${s.name} ${s.values[this._picked]}`).join(" · ")}`;
+    } else {
+      summary = T.lastDays(days);
+    }
+    const legend = series.map((s) => {
+      const total = s.values.reduce((a, b) => a + b, 0);
+      return `<button class="lci-leg ${hidden.has(s.name) ? "off" : ""}" data-name="${esc(s.name)}" aria-pressed="${!hidden.has(s.name)}">
+        <span class="dot" style="background:${esc(s.color)}"></span>${esc(s.name)}
+        <span class="tot">${total} · ${T.perDay(Number((total / days).toFixed(1)).toLocaleString(lang))}</span></button>`;
+    }).join("");
+    const range = [7, 30].map((d) => `<button class="lci-rng ${d === days ? "sel" : ""}" data-days="${d}">${T.days(d)}</button>`).join("");
+    this.shell(title, `<div class="lci-chart-head"><span class="lci-sub">${esc(summary)}</span><span>${range}</span></div>
+      ${this._chart(hass, series, days)}<div class="lci-legend">${legend}</div>`);
+    const rerender = () => { this._sig = null; this.hass = this._hass; };
+    this.querySelectorAll(".hit").forEach((el) => el.addEventListener("click", () => {
+      const i = Number(el.dataset.day);
+      this._picked = this._picked === i ? null : i;
+      rerender();
+    }));
+    this.querySelectorAll(".lci-leg").forEach((el) => el.addEventListener("click", () => {
+      const set = new Set(this._hidden || []);
+      set.has(el.dataset.name) ? set.delete(el.dataset.name) : set.add(el.dataset.name);
+      this._hidden = set;
+      rerender();
+    }));
+    this.querySelectorAll(".lci-rng").forEach((el) => el.addEventListener("click", () => {
+      this._days = Number(el.dataset.days);
+      this._picked = null;
+      rerender();
+    }));
+  }
+  getCardSize() { return 4; }
+  getGridOptions() { return { columns: 12, min_columns: 6 }; }
+}
+const VisitsChartEditor = makeEditor((T) => [
+  ...COMMON(),
+  { name: "days", selector: { select: { mode: "dropdown", options: [7, 14, 30].map((d) => ({ value: d, label: T.days(d) })) } } },
+  { name: "show_unidentified", selector: { boolean: {} }, default: true },
+]);
+
 /* ---------- litter box ---------- */
 class BoxCard extends BaseCard {
   static getStubConfig() { return { confirm: true }; }
@@ -493,6 +717,8 @@ define("litter-cat-identifier-visits", VisitsCard);
 define("litter-cat-identifier-visits-editor", VisitsEditor);
 define("litter-cat-identifier-weight", WeightCard);
 define("litter-cat-identifier-weight-editor", WeightEditor);
+define("litter-cat-identifier-visits-chart", VisitsChartCard);
+define("litter-cat-identifier-visits-chart-editor", VisitsChartEditor);
 define("litter-cat-identifier-box", BoxCard);
 define("litter-cat-identifier-box-editor", BoxEditor);
 
@@ -502,6 +728,7 @@ for (const [type, name, description] of [
   ["litter-cat-identifier-cats", "Litter Cat Identifier – Cats", "All (or some) cats together: photo, name, weight, visits today and last visit."],
   ["litter-cat-identifier-visits", "Litter Cat Identifier – Recent visits", "Latest litter box visits, with the likely reason for unidentified readings."],
   ["litter-cat-identifier-weight", "Litter Cat Identifier – Weight", "Weight history of each cat."],
+  ["litter-cat-identifier-visits-chart", "Litter Cat Identifier – Visits per day", "Bars per day with one bar per cat, 7 or 30 days."],
   ["litter-cat-identifier-box", "Litter Cat Identifier – Litter box", "Clean now, automatic cleaning and today's visits."],
 ]) {
   if (!window.customCards.some((c) => c.type === type)) {

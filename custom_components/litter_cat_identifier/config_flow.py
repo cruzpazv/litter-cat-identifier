@@ -55,6 +55,8 @@ from .const import (
 from .pictures import PictureError, async_delete_pictures, async_store_picture
 
 SENSOR = EntitySelector(EntitySelectorConfig(domain="sensor"))
+# A visit counter sensor, or a visit event entity carrying weight / duration (e.g. UAHPET).
+VISIT = EntitySelector(EntitySelectorConfig(domain=["sensor", "event"]))
 PHOTO = MediaSelector(MediaSelectorConfig(accept=["image/*"]))
 
 
@@ -97,7 +99,7 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_NAME, default=DEFAULT_NAME): TextSelector(),
                 vol.Required(CONF_WEIGHT_ENTITY): SENSOR,
-                vol.Optional(CONF_VISIT_ENTITY): SENSOR,
+                vol.Optional(CONF_VISIT_ENTITY): VISIT,
                 vol.Optional(CONF_DURATION_ENTITY): SENSOR,
             }
         )
@@ -166,7 +168,7 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_WEIGHT_ENTITY): SENSOR,
-                vol.Optional(CONF_VISIT_ENTITY): SENSOR,
+                vol.Optional(CONF_VISIT_ENTITY): VISIT,
                 vol.Optional(CONF_DURATION_ENTITY): SENSOR,
             }
         )

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import voluptuous as vol
 
+from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -85,9 +86,34 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _coordinator(call).clear_unidentified()
 
     hass.services.async_register(DOMAIN, SERVICE_CLEAR_UNIDENTIFIED, _clear, schema=CLEAR_SCHEMA)
+    websocket_api.async_register_command(hass, ws_history)
     await async_register_static_path(hass)
     await async_register_cards(hass)
     return True
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/history",
+        vol.Optional("device_id"): str,
+        vol.Optional("offset", default=0): vol.All(int, vol.Range(min=0)),
+        vol.Optional("limit", default=0): vol.All(int, vol.Range(min=0)),  # 0 = all
+    }
+)
+@callback
+def ws_history(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Stored visit history (newest first), beyond the 20 visits in the sensor attributes."""
+    loaded = [e for e in hass.config_entries.async_entries(DOMAIN) if e.state is ConfigEntryState.LOADED]
+    if device_id := msg.get("device_id"):
+        device = dr.async_get(hass).async_get(device_id)
+        loaded = [e for e in loaded if device and e.entry_id in device.config_entries]
+    if not loaded:
+        connection.send_error(msg["id"], "not_found", "Litter box not found")
+        return
+    history = loaded[0].runtime_data.history
+    start = msg["offset"]
+    end = start + msg["limit"] if msg["limit"] else None
+    connection.send_result(msg["id"], {"total": len(history), "history": history[start:end]})
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: LitterConfigEntry) -> bool:
