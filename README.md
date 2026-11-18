@@ -168,7 +168,7 @@ The integration ships its own cards. Edit a dashboard → **Add card** → searc
 | **Litter box** (`custom:litter-cat-identifier-box`) | **Clean now** button, automatic-cleaning switch, today's visits per cat | cleaning entity (switch, button or script from your litter box integration), auto-clean switch, confirmation |
 | **Litter box, compact** (`custom:litter-cat-identifier-box-mini`) | One row: visits today and a clean button (tap twice to confirm) | cleaning entity, confirmation |
 
-They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). All cards also accept `title`, `show_title: false` (hide the header) and `device_id` (only needed with more than one litter box).
+They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). All cards also accept `title`, `show_title: false` (hide the header), `scale` (0.7–1.5, *Size* in the editor: smaller or bigger) and `device_id` (only needed with more than one litter box). In a sections dashboard they fill the height you give them.
 
 YAML example:
 

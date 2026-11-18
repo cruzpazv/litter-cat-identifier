@@ -41,7 +41,7 @@ const I18N = {
       hour: "Hour", day: "Day", week: "Week", month: "Month", line: "Line", bar: "Bars", mean: "Average", min: "Minimum", max: "Maximum",
       show_title: "Show title", cat: "Cat", cats: "Cats to show (empty = all)", layout: "Layout", horizontal: "Horizontal", vertical: "Vertical",
       show_photo: "Show photo", avatar_size: "Photo size (px)", color: "Icon colour (when there's no photo)",
-      show_health: "Show health alerts", show_unidentified: "Show unidentified visits", collapsible: "Collapsible list", expanded_count: "Visits when expanded",
+      scale: "Size", show_health: "Show health alerts", show_unidentified: "Show unidentified visits", collapsible: "Collapsible list", expanded_count: "Visits when expanded",
     },
     pickCat: "Pick a cat in the card editor.",
     more: "Show more", less: "Show less", all: (n) => (n ? `Whole history (${n})` : "Whole history"),
@@ -74,7 +74,7 @@ const I18N = {
       hour: "Hora", day: "Día", week: "Semana", month: "Mes", line: "Línea", bar: "Barras", mean: "Media", min: "Mínimo", max: "Máximo",
       show_title: "Mostrar título", cat: "Gato", cats: "Gatos a mostrar (vacío = todos)", layout: "Disposición", horizontal: "Horizontal", vertical: "Vertical",
       show_photo: "Mostrar foto", avatar_size: "Tamaño de la foto (px)", color: "Color del icono (si no hay foto)",
-      show_health: "Mostrar avisos de salud", show_unidentified: "Mostrar visitas no identificadas", collapsible: "Lista desplegable", expanded_count: "Visitas al desplegar",
+      scale: "Tamaño", show_health: "Mostrar avisos de salud", show_unidentified: "Mostrar visitas no identificadas", collapsible: "Lista desplegable", expanded_count: "Visitas al desplegar",
     },
     pickCat: "Elige un gato en el editor de la tarjeta.",
     more: "Ver más", less: "Ver menos", all: (n) => (n ? `Todo el historial (${n})` : "Todo el historial"),
@@ -131,6 +131,8 @@ const moreInfo = (el, entityId) =>
   el.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true }));
 
 const STYLE = `
+  litter-cat-identifier-cats ha-card, litter-cat-identifier-cat ha-card, litter-cat-identifier-visits ha-card,
+  litter-cat-identifier-visits-chart ha-card, litter-cat-identifier-box ha-card, litter-cat-identifier-box-mini ha-card { height: 100%; box-sizing: border-box; }
   .lci { padding: 0 16px 16px; }
   ha-card:not([header]) .lci { padding-top: 16px; }
   .lci-empty { color: var(--secondary-text-color); }
@@ -240,7 +242,8 @@ class BaseCard extends HTMLElement {
   }
   shell(title, body) {
     if (this._config && this._config.show_title === false) title = "";
-    this.innerHTML = `<ha-card ${title ? `header="${esc(title)}"` : ""}><div class="lci">${body}</div></ha-card><style>${STYLE}</style>`;
+    const scale = Number(this._config?.scale) || 1;  // card option: bigger / smaller (CSS zoom)
+    this.innerHTML = `<ha-card ${title ? `header="${esc(title)}"` : ""} ${scale !== 1 ? `style="zoom:${scale}"` : ""}><div class="lci">${body}</div></ha-card><style>${STYLE}</style>`;
   }
   getCardSize() { return 3; }
 }
@@ -307,6 +310,7 @@ const COMMON = () => [
     { name: "title", selector: { text: {} } },
     { name: "show_title", selector: { boolean: {} }, default: true },
   ] },
+  { name: "scale", selector: { number: { min: 0.7, max: 1.5, step: 0.05, mode: "slider" } }, default: 1 },
 ];
 const catNames = (hass, config) => (findBox(hass, config?.device_id)?.cats || []).map((c) => c.name);
 const avatarSchema = (T) => [{ type: "grid", name: "", schema: [
