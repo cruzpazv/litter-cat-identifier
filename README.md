@@ -19,7 +19,7 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - Per cat: learned weight (long-term statistics → trend graphs), visits today, last visit
 - Visit log (up to 2000 visits; the sensor shows the latest 20, cards and the websocket API the rest)
 - An **event entity** per litter box → automations like "notify if Luna hasn't visited in 24 h" or "Simba visited 6 times today"
-- **Photo per cat** shown on all of that cat's entities
+- **Photo and colour per cat**: the photo shows on the cat's entities; the colour (cat settings) is used by the charts and by the icon when there is no photo
 - **Notifications** from the UI: every visit, unidentified visits, or "no visit in X hours" per cat (photo attached on the HA mobile app)
 - Unidentified readings come with a **likely reason**: a cat half inside right after its visit (and which cat), or a litter refill
 - **Recalibrate** a cat's weight from its latest readings with one button
@@ -37,7 +37,7 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 <tr><td><img src="docs/images/cats.png" alt="Cats card" width="380"><br><b>Cats</b>: weight, visits today, last visit and health alerts</td>
 <td><img src="docs/images/visits-chart.png" alt="Visits per day card" width="380"><br><b>Visits per day</b>: one bar per cat</td></tr>
 <tr><td><img src="docs/images/visits.png" alt="Recent visits card" width="380"><br><b>Recent visits</b> as a collapsible list (expanded)</td>
-<td><img src="docs/images/cat.png" alt="Cat card" width="380"><br><b>Cat</b>: a single cat<br><br><img src="docs/images/box.png" alt="Litter box card" width="380"><br><b>Litter box</b>: clean now, auto clean, today</td></tr>
+<td><img src="docs/images/cat.png" alt="Cat card" width="380"><br><b>Cat</b>: a single cat<br><br><img src="docs/images/box.png" alt="Litter box card" width="380"><br><b>Litter box</b>: clean now, auto clean, today<br><br><img src="docs/images/box-mini.png" alt="Compact litter box card" width="380"><br><b>Litter box (compact)</b>: clean only</td></tr>
 </table>
 
 Rendered from the real cards with sample data. The *Weight* card is Home Assistant's own statistics graph.
@@ -166,6 +166,7 @@ The integration ships its own cards. Edit a dashboard → **Add card** → searc
 | **Weight** (`custom:litter-cat-identifier-weight`) | Weight history per cat; the chart fills the card size | days, period (hour/day/week/month), line or bars, average/min/max |
 | **Visits per day** (`custom:litter-cat-identifier-visits-chart`) | Bars per day with **one bar per cat** (and grey for unidentified). Tap a cat in the legend to hide it, tap a day for its numbers, switch between 7 and 30 days | days, show unidentified, `colors` (YAML: `colors: {Luna: "#e15759"}`) |
 | **Litter box** (`custom:litter-cat-identifier-box`) | **Clean now** button, automatic-cleaning switch, today's visits per cat | cleaning entity (switch, button or script from your litter box integration), auto-clean switch, confirmation |
+| **Litter box, compact** (`custom:litter-cat-identifier-box-mini`) | One row: visits today and a clean button (tap twice to confirm) | cleaning entity, confirmation |
 
 They find your litter box and cats automatically and follow your Home Assistant language (English/Spanish). All cards also accept `title`, `show_title: false` (hide the header) and `device_id` (only needed with more than one litter box).
 

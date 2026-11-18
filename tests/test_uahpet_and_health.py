@@ -93,3 +93,13 @@ async def test_frequent_visits_health(hass: HomeAssistant):
     state = hass.states.get(sensor)
     assert state.state == "on" and state.attributes["reasons"] == ["frequent_visits"]
     assert COUNTER  # same helpers as the main tests
+
+
+async def test_cat_colour(hass: HomeAssistant):
+    entry = await _setup(hass)
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {"next_step_id": "cat_select"})
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {"cat": "Luna"})
+    r = await hass.config_entries.options.async_configure(r["flow_id"], {"notify_visit": False, "alert_hours": 0, "color": [89, 161, 79]})
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.taco_luna_weight").attributes["color"] == "#59a14f"

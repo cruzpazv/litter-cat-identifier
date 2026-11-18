@@ -31,6 +31,7 @@ const I18N = {
     hide: "Hide unidentified", show: (n) => `Show unidentified (${n} hidden)`,
     clean: "Clean now", cleaning: "Cleaning…", confirmClean: "Clean the litter box now? Make sure no cat is inside.",
     autoClean: "Automatic cleaning", todayTitle: "Today", noClean: "Pick the cleaning entity in the card editor.",
+    cancel: "Cancel", tapAgain: "Tap again to clean", visitsToday: (n) => (n === 1 ? "1 visit today" : `${n} visits today`),
     l: {
       device_id: "Litter box", title: "Title", columns: "Cats per row", show_weight: "Show weight",
       show_visits: "Show visits today", show_last: "Show last visit", count: "Visits shown",
@@ -63,6 +64,7 @@ const I18N = {
     hide: "Ocultar no identificadas", show: (n) => `Mostrar no identificadas (${n} ocultas)`,
     clean: "Limpiar ahora", cleaning: "Limpiando…", confirmClean: "¿Limpiar el arenero ahora? Comprueba que no hay ningún gato dentro.",
     autoClean: "Limpieza automática", todayTitle: "Hoy", noClean: "Elige la entidad de limpieza en el editor de la tarjeta.",
+    cancel: "Cancelar", tapAgain: "Pulsa otra vez para limpiar", visitsToday: (n) => (n === 1 ? "1 visita hoy" : `${n} visitas hoy`),
     l: {
       device_id: "Arenero", title: "Título", columns: "Gatos por fila", show_weight: "Mostrar peso",
       show_visits: "Mostrar visitas de hoy", show_last: "Mostrar última visita", count: "Visitas visibles",
@@ -164,6 +166,38 @@ const STYLE = `
   .lci-chip { padding: 4px 10px; border-radius: 16px; background: var(--secondary-background-color); font-size: .9em; }
   .lci-health { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--error-color, #db4437); font-size: .85em; }
   .lci-health ha-icon { --mdc-icon-size: 16px; flex: none; }
+  .lcb-head, .lcb-mini { display: flex; align-items: center; gap: 12px; }
+  .lcb-head { margin-bottom: 14px; }
+  .lcb-titles { flex: 1; min-width: 0; }
+  .lcb-badge { width: 44px; height: 44px; border-radius: 50%; flex: none; display: grid; place-items: center;
+               background: color-mix(in srgb, var(--primary-color) 14%, transparent); color: var(--primary-color); }
+  .lcb-badge.busy ha-icon { animation: lcb-spin 2.4s linear infinite; }
+  @keyframes lcb-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .lcb-badge.busy ha-icon { animation: none; } }
+  .lcb-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 18px; border-radius: 14px; border: 0;
+             cursor: pointer; font: inherit; font-weight: 500; color: var(--text-primary-color, #fff); background: var(--primary-color); }
+  .lcb-btn.wide { width: 100%; font-size: 1.05em; }
+  .lcb-btn[disabled] { opacity: .6; cursor: default; }
+  .lcb-ask { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px; background: var(--secondary-background-color); }
+  .lcb-ask-b { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+  .lcb-link { border: 0; background: none; font: inherit; color: var(--primary-color); cursor: pointer; padding: 8px 12px; }
+  .lcb-row { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 12px; padding: 10px 12px; border: 0; border-radius: 14px;
+             background: var(--secondary-background-color); font: inherit; color: var(--primary-text-color); cursor: pointer; text-align: left; }
+  .lcb-row > span:first-of-type { flex: 1; }
+  .lcb-row ha-icon { color: var(--state-icon-color, var(--secondary-text-color)); }
+  .lcb-sw { width: 40px; height: 24px; border-radius: 12px; background: var(--divider-color); position: relative; flex: none; transition: background .2s; }
+  .lcb-sw span { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s; }
+  .lcb-sw.on { background: var(--primary-color); } .lcb-sw.on span { transform: translateX(16px); }
+  .lcb-label { margin-top: 14px; }
+  .lcb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .lcb-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 16px; background: var(--secondary-background-color); font-size: .9em; }
+  .lcb-chip img, .lcb-chip ha-icon { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; --mdc-icon-size: 16px;
+                                     display: grid; place-items: center; background: var(--card-background-color); color: var(--primary-color); }
+  .lcb-chip b { font-weight: 600; }
+  .lcb-round { width: 44px; height: 44px; border-radius: 50%; border: 0; flex: none; cursor: pointer; display: grid; place-items: center;
+               background: color-mix(in srgb, var(--primary-color) 14%, transparent); color: var(--primary-color); }
+  .lcb-round.armed { background: var(--error-color, #db4437); color: #fff; }
+  .lcb-round[disabled] { opacity: .5; cursor: default; }
   .lci-foot { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
   .lci-scroll { max-height: 420px; overflow-y: auto; }
   .lci-chart-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -302,7 +336,8 @@ function catTile(hass, T, c, cat) {
   const avatar = pic
     ? `<img class="lci-avatar" src="${esc(pic)}" alt="">`
     : `<div class="lci-avatar"><ha-icon icon="mdi:cat"></ha-icon></div>`;
-  const style = [c.avatar_size ? `--lci-avatar:${Number(c.avatar_size)}px` : "", c.color ? `--lci-color:${esc(c.color)}` : ""].join(";");
+  const color = c.color || w?.attributes?.color;  // card option first, then the cat's colour
+  const style = [c.avatar_size ? `--lci-avatar:${Number(c.avatar_size)}px` : "", color ? `--lci-color:${esc(color)}` : ""].join(";");
   return `<div class="lci-cat ${c.layout === "vertical" ? "vertical" : ""}" style="${style}" data-entity="${esc(cat.weight)}">${avatar}
     <div style="min-width:0"><div class="lci-name">${esc(cat.name)}</div>
     ${on(c.show_weight) ? `<div class="lci-kg">${kg}</div>` : ""}${sub ? `<div class="lci-sub">${sub}</div>` : ""}
@@ -579,7 +614,7 @@ class VisitsChartCard extends BaseCard {
   /** [{name, color, id, values[days]}]: statistics per day, today's live value from the sensor. */
   _series(hass, box, days) {
     const T = t(hass), colors = this._config.colors || {};
-    const list = box.cats.map((c, i) => ({ name: c.name, id: c.visits, color: colors[c.name] || PALETTE[i % PALETTE.length] }));
+    const list = box.cats.map((c, i) => ({ name: c.name, id: c.visits, color: colors[c.name] || hass.states[c.weight]?.attributes?.color || PALETTE[i % PALETTE.length] }));
     if (on(this._config.show_unidentified) && box.unidentified) list.push({ name: T.unidentified, id: box.unidentified, color: GREY, unknown: true });
     const keys = Array.from({ length: days }, (_, i) => dayStart(i - (days - 1)).toDateString());
     for (const s of list) {
@@ -675,43 +710,62 @@ const VisitsChartEditor = makeEditor((T) => [
 ]);
 
 /* ---------- litter box ---------- */
+/** Run the cleaning entity (switch, button or script). */
+const runClean = (hass, id) => {
+  const domain = id.split(".")[0];
+  if (domain === "button") hass.callService("button", "press", { entity_id: id });
+  else if (domain === "script") hass.callService("script", "turn_on", { entity_id: id });
+  else hass.callService(domain, "turn_on", { entity_id: id });
+};
+const isCleaning = (hass, id) => id && id.startsWith("switch.") && hass.states[id]?.state === "on";
+
 class BoxCard extends BaseCard {
   static getStubConfig() { return { confirm: true }; }
   static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-box-editor"); }
   signature(hass, box) {
     const c = this._config || {};
-    return super.signature(hass, box) + [c.clean_entity, c.auto_clean_entity].map((id) => id && hass.states[id]?.last_updated).join("|");
+    return `${super.signature(hass, box)}${[c.clean_entity, c.auto_clean_entity].map((id) => id && hass.states[id]?.last_updated).join("|")}|${this._asking}`;
   }
   render(hass, box) {
     const T = t(hass), c = this._config;
     const title = c.title ?? T.box;
     const clean = c.clean_entity && hass.states[c.clean_entity];
-    const busy = clean && c.clean_entity.startsWith("switch.") && clean.state === "on";
-    const actions = clean
-      ? `<button class="lci-btn" ${busy ? "disabled" : ""}><ha-icon icon="mdi:broom"></ha-icon>${busy ? T.cleaning : T.clean}</button>`
-      : `<div class="lci-empty">${T.noClean}</div>`;
+    const busy = isCleaning(hass, c.clean_entity);
+    const total = box ? box.cats.reduce((n, cat) => n + (parseInt(hass.states[cat.visits]?.state) || 0), 0)
+      + (parseInt(hass.states[box.unidentified]?.state) || 0) : 0;
     const auto = c.auto_clean_entity && hass.states[c.auto_clean_entity];
-    const autoRow = auto
-      ? `<div class="lci-row"><span>${T.autoClean}</span><ha-switch ${auto.state === "on" ? "checked" : ""}></ha-switch></div>`
-      : "";
+    const autoOn = auto?.state === "on";
+    const head = `<div class="lcb-head"><span class="lcb-badge ${busy ? "busy" : ""}"><ha-icon icon="${busy ? "mdi:rotate-3d-variant" : "mdi:cat"}"></ha-icon></span>
+      <div class="lcb-titles"><div class="lci-name">${esc(c.show_title === false ? "" : title) || esc(T.box)}</div>
+      <div class="lci-sub">${busy ? T.cleaning : T.visitsToday(total)}</div></div></div>`;
+    const action = clean
+      ? (this._asking
+        ? `<div class="lcb-ask"><span>${esc(T.confirmClean)}</span><div class="lcb-ask-b"><button class="lcb-link" data-a="no">${T.cancel}</button>
+            <button class="lcb-btn" data-a="yes"><ha-icon icon="mdi:broom"></ha-icon>${T.clean}</button></div></div>`
+        : `<button class="lcb-btn wide" data-a="clean" ${busy ? "disabled" : ""}><ha-icon icon="mdi:broom"></ha-icon>${busy ? T.cleaning : T.clean}</button>`)
+      : `<div class="lci-empty">${T.noClean}</div>`;
+    const autoRow = auto ? `<button class="lcb-row" data-a="auto" role="switch" aria-checked="${autoOn}">
+        <ha-icon icon="mdi:robot-vacuum"></ha-icon><span>${T.autoClean}</span><span class="lcb-sw ${autoOn ? "on" : ""}"><span></span></span></button>` : "";
     let today = "";
     if (box && on(c.show_today)) {
-      const chips = box.cats.map((cat) => `<span class="lci-chip">${esc(cat.name)} ${esc(hass.states[cat.visits]?.state ?? "0")}</span>`);
-      if (box.unidentified) chips.push(`<span class="lci-chip">❔ ${esc(hass.states[box.unidentified]?.state ?? "0")}</span>`);
-      today = `<div class="lci-sub" style="margin-top:12px">${T.todayTitle}</div><div class="lci-chips" style="margin-top:4px">${chips.join("")}</div>`;
+      const chips = box.cats.map((cat) => {
+        const pic = hass.states[cat.weight]?.attributes?.entity_picture;
+        const color = hass.states[cat.weight]?.attributes?.color;
+        return `<span class="lcb-chip">${pic ? `<img src="${esc(pic)}" alt="">` : `<ha-icon icon="mdi:cat" ${color ? `style="color:${esc(color)}"` : ""}></ha-icon>`}${esc(cat.name)}<b>${esc(hass.states[cat.visits]?.state ?? "0")}</b></span>`;
+      });
+      if (box.unidentified && parseInt(hass.states[box.unidentified]?.state)) chips.push(`<span class="lcb-chip"><ha-icon icon="mdi:help-circle-outline"></ha-icon>${T.unidentified}<b>${esc(hass.states[box.unidentified].state)}</b></span>`);
+      today = `<div class="lci-sub lcb-label">${T.todayTitle}</div><div class="lcb-chips">${chips.join("")}</div>`;
     }
-    this.shell(title, `<div class="lci-actions">${actions}</div>${autoRow}${today}`);
-    this.querySelector(".lci-btn")?.addEventListener("click", () => {
-      if (on(c.confirm) && !window.confirm(T.confirmClean)) return;
-      const id = c.clean_entity, domain = id.split(".")[0];
-      if (domain === "button") hass.callService("button", "press", { entity_id: id });
-      else if (domain === "script") hass.callService("script", "turn_on", { entity_id: id });
-      else hass.callService(domain, "turn_on", { entity_id: id });
-    });
-    this.querySelector("ha-switch")?.addEventListener("change", (ev) =>
-      hass.callService("switch", ev.target.checked ? "turn_on" : "turn_off", { entity_id: c.auto_clean_entity }));
+    this.shell("", `${head}${action}${autoRow}${today}`);
+    this.querySelectorAll("[data-a]").forEach((el) => el.addEventListener("click", () => {
+      const a = el.dataset.a;
+      if (a === "clean") { if (on(c.confirm)) { this._asking = true; this._sig = null; this.hass = this._hass; } else runClean(hass, c.clean_entity); }
+      else if (a === "yes") { this._asking = false; runClean(hass, c.clean_entity); this._sig = null; this.hass = this._hass; }
+      else if (a === "no") { this._asking = false; this._sig = null; this.hass = this._hass; }
+      else if (a === "auto") hass.callService("switch", autoOn ? "turn_off" : "turn_on", { entity_id: c.auto_clean_entity });
+    }));
   }
-  getCardSize() { return 2; }
+  getCardSize() { return 3; }
   getGridOptions() { return { columns: 6, min_columns: 4 }; }
 }
 const BoxEditor = makeEditor(() => [
@@ -722,6 +776,47 @@ const BoxEditor = makeEditor(() => [
     { name: "confirm", selector: { boolean: {} }, default: true },
     { name: "show_today", selector: { boolean: {} }, default: true },
   ] },
+]);
+
+/* ---------- compact litter box: clean only ---------- */
+class BoxMiniCard extends BaseCard {
+  static getStubConfig() { return { confirm: true }; }
+  static async getConfigElement() { await loadHaForm(); return document.createElement("litter-cat-identifier-box-mini-editor"); }
+  signature(hass, box) {
+    const c = this._config || {};
+    return `${super.signature(hass, box)}${c.clean_entity && hass.states[c.clean_entity]?.last_updated}|${this._armed}`;
+  }
+  render(hass, box) {
+    const T = t(hass), c = this._config;
+    const busy = isCleaning(hass, c.clean_entity);
+    const total = box ? box.cats.reduce((n, cat) => n + (parseInt(hass.states[cat.visits]?.state) || 0), 0)
+      + (parseInt(hass.states[box.unidentified]?.state) || 0) : 0;
+    const name = c.title ?? T.box;
+    const sub = !c.clean_entity ? T.noClean : busy ? T.cleaning : this._armed ? T.tapAgain : T.visitsToday(total);
+    this.shell("", `<div class="lcb-mini"><span class="lcb-badge ${busy ? "busy" : ""}"><ha-icon icon="${busy ? "mdi:rotate-3d-variant" : "mdi:cat"}"></ha-icon></span>
+      <div class="lcb-titles"><div class="lci-name">${esc(name)}</div><div class="lci-sub">${esc(sub)}</div></div>
+      ${c.clean_entity ? `<button class="lcb-round ${this._armed ? "armed" : ""}" aria-label="${T.clean}" ${busy ? "disabled" : ""}>
+        <ha-icon icon="${this._armed ? "mdi:check" : "mdi:broom"}"></ha-icon></button>` : ""}</div>`);
+    this.querySelector(".lcb-round")?.addEventListener("click", () => {
+      if (on(c.confirm) && !this._armed) {
+        this._armed = true;
+        clearTimeout(this._armTimer);
+        this._armTimer = setTimeout(() => { this._armed = false; this._sig = null; this.hass = this._hass; }, 4000);
+      } else {
+        this._armed = false;
+        runClean(hass, c.clean_entity);
+      }
+      this._sig = null;
+      this.hass = this._hass;
+    });
+  }
+  getCardSize() { return 1; }
+  getGridOptions() { return { columns: 6, min_columns: 4, rows: 1 }; }
+}
+const BoxMiniEditor = makeEditor(() => [
+  ...COMMON(),
+  { name: "clean_entity", selector: { entity: { domain: ["switch", "button", "script"] } } },
+  { name: "confirm", selector: { boolean: {} }, default: true },
 ]);
 
 const define = (tag, cls) => { if (!customElements.get(tag)) customElements.define(tag, cls); };
@@ -737,6 +832,8 @@ define("litter-cat-identifier-visits-chart", VisitsChartCard);
 define("litter-cat-identifier-visits-chart-editor", VisitsChartEditor);
 define("litter-cat-identifier-box", BoxCard);
 define("litter-cat-identifier-box-editor", BoxEditor);
+define("litter-cat-identifier-box-mini", BoxMiniCard);
+define("litter-cat-identifier-box-mini-editor", BoxMiniEditor);
 
 window.customCards = window.customCards || [];
 for (const [type, name, description] of [
@@ -746,6 +843,7 @@ for (const [type, name, description] of [
   ["litter-cat-identifier-weight", "Litter Cat Identifier – Weight", "Weight history of each cat."],
   ["litter-cat-identifier-visits-chart", "Litter Cat Identifier – Visits per day", "Bars per day with one bar per cat, 7 or 30 days."],
   ["litter-cat-identifier-box", "Litter Cat Identifier – Litter box", "Clean now, automatic cleaning and today's visits."],
+  ["litter-cat-identifier-box-mini", "Litter Cat Identifier – Litter box (compact)", "One row with a clean button."],
 ]) {
   if (!window.customCards.some((c) => c.type === type)) {
     window.customCards.push({ type, name, description, preview: true,

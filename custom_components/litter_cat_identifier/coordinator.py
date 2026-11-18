@@ -32,6 +32,7 @@ from .const import (
     CONF_CAT_OPTIONS,
     CONF_CAT_WEIGHT,
     CONF_CATS,
+    CONF_COLOR,
     CONF_DURATION_ENTITY,
     CONF_MIN_WEIGHT,
     CONF_NOTIFY_TARGETS,
@@ -109,6 +110,7 @@ class LitterCoordinator:
                 CONF_PICTURE: cat_opts.get(n, {}).get(CONF_PICTURE) or None,
                 CONF_NOTIFY_VISIT: bool(cat_opts.get(n, {}).get(CONF_NOTIFY_VISIT, False)),
                 CONF_ALERT_HOURS: float(cat_opts.get(n, {}).get(CONF_ALERT_HOURS, 0) or 0),
+                CONF_COLOR: cat_opts.get(n, {}).get(CONF_COLOR),
             }
             for n in self.cat_names
         }
@@ -135,6 +137,11 @@ class LitterCoordinator:
         self._cancel_timer: Callable[[], None] | None = None
         self._cancel_wait: Callable[[], None] | None = None  # counter ticked, waiting for the weight
         self._unsubs: list[Callable[[], None]] = []
+
+    def color(self, cat: str | None) -> str | None:
+        """Cat colour as #rrggbb (charts, icons), if one was picked."""
+        rgb = self.cat_settings.get(cat, {}).get(CONF_COLOR) if cat else None
+        return "#{:02x}{:02x}{:02x}".format(*rgb) if rgb and len(rgb) == 3 else None
 
     def picture(self, cat: str | None) -> str | None:
         return self.cat_settings.get(cat, {}).get(CONF_PICTURE) if cat else None

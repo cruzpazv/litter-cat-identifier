@@ -90,7 +90,8 @@
           "notify_visit": "Notify every visit",
           "alert_hours": "Alert if no visit for",
           "picture_media": "Photo",
-          "remove_picture": "Remove photo"
+          "remove_picture": "Remove photo",
+          "color": "Colour (charts and icon)"
         },
         "data_description": {
           "picture": "e.g. /local/cats/luna.jpg or https://…",

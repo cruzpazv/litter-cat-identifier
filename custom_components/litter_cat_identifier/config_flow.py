@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
+    ColorRGBSelector,
     EntitySelector,
     EntitySelectorConfig,
     NumberSelector,
@@ -33,6 +34,7 @@ from .const import (
     CONF_CAT_OPTIONS,
     CONF_CAT_WEIGHT,
     CONF_CATS,
+    CONF_COLOR,
     CONF_DURATION_ENTITY,
     CONF_MIN_WEIGHT,
     CONF_NOTIFY_TARGETS,
@@ -287,6 +289,7 @@ class LitterCatOptionsFlow(OptionsFlow):
                     CONF_PICTURE: picture,
                     CONF_NOTIFY_VISIT: user_input[CONF_NOTIFY_VISIT],
                     CONF_ALERT_HOURS: float(user_input[CONF_ALERT_HOURS]),
+                    CONF_COLOR: user_input.get(CONF_COLOR) or current.get(CONF_COLOR),
                 }
                 return self.async_create_entry(data={**opts, CONF_CAT_OPTIONS: cat_opts})
 
@@ -299,6 +302,7 @@ class LitterCatOptionsFlow(OptionsFlow):
                 vol.Required(CONF_ALERT_HOURS, default=current.get(CONF_ALERT_HOURS, 0)): NumberSelector(
                     NumberSelectorConfig(min=0, max=168, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="h")
                 ),
+                vol.Optional(CONF_COLOR, description={"suggested_value": current.get(CONF_COLOR)}): ColorRGBSelector(),
             }
         )
         return self.async_show_form(

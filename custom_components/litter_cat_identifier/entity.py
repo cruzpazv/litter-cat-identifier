@@ -34,6 +34,12 @@ class LitterEntity(Entity):
     def entity_picture(self) -> str | None:
         return self.coordinator.picture(self.cat)
 
+    def cat_attributes(self) -> dict:
+        attrs = {"cat": self.cat}
+        if color := self.coordinator.color(self.cat):
+            attrs["color"] = color
+        return attrs
+
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(
             async_dispatcher_connect(

@@ -42,6 +42,7 @@ CONF_NOTIFY_HEALTH = "notify_health"
 CONF_RECORD_UNIDENTIFIED = "record_unidentified"
 CONF_NOTIFY_VISIT = "notify_visit"
 CONF_ALERT_HOURS = "alert_hours"
+CONF_COLOR = "color"  # cat colour for charts / icons, [r, g, b]
 
 STORAGE_VERSION = 1
 

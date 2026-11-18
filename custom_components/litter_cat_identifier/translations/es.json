@@ -90,7 +90,8 @@
           "notify_visit": "Avisar en cada visita",
           "alert_hours": "Alertar si no va en",
           "picture_media": "Foto",
-          "remove_picture": "Quitar foto"
+          "remove_picture": "Quitar foto",
+          "color": "Color (gráficas e icono)"
         },
         "data_description": {
           "picture": "p. ej. /local/gatos/luna.jpg o https://…",

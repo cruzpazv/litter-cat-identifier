@@ -81,7 +81,7 @@ class CatWeightSensor(LitterEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"cat": self.cat}
+        return self.cat_attributes()
 
     @property
     def native_value(self) -> float:
@@ -97,7 +97,7 @@ class CatVisitsTodaySensor(LitterEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"cat": self.cat}
+        return self.cat_attributes()
 
     @property
     def native_value(self) -> int:
@@ -112,7 +112,7 @@ class CatLastVisitSensor(LitterEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"cat": self.cat}
+        return self.cat_attributes()
 
     @property
     def native_value(self) -> datetime | None:
