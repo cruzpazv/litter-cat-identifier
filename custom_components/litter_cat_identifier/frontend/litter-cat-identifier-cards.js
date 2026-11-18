@@ -22,6 +22,10 @@ const I18N = {
     partial: (c) => `Probably ${c} half inside, right after the visit`,
     noWeight: "Visit detected without a weight",
     refill: "Probably a litter refill or a cat half inside",
+    busy: "The litter box was moving the litter (cleaning, emptying or levelling)",
+    stayed: "A cat stayed too long: the litter box levelled the litter and reset the weight",
+    health: { frequent_visits: (v) => `${v} visits today, much more than usual`, long_visit: (v) => `${v} s visit, much longer than usual`,
+      weight_loss: (v) => `Lost ${v} % of weight in 3 weeks` },
     notFound: "No Litter Cat Identifier litter box found.",
     days: (d) => `${d} days`,
     hide: "Hide unidentified", show: (n) => `Show unidentified (${n} hidden)`,
@@ -36,7 +40,7 @@ const I18N = {
       hour: "Hour", day: "Day", week: "Week", month: "Month", line: "Line", bar: "Bars", mean: "Average", min: "Minimum", max: "Maximum",
       show_title: "Show title", cat: "Cat", cats: "Cats to show (empty = all)", layout: "Layout", horizontal: "Horizontal", vertical: "Vertical",
       show_photo: "Show photo", avatar_size: "Photo size (px)", color: "Icon colour (when there's no photo)",
-      show_unidentified: "Show unidentified visits", collapsible: "Collapsible list", expanded_count: "Visits when expanded",
+      show_health: "Show health alerts", show_unidentified: "Show unidentified visits", collapsible: "Collapsible list", expanded_count: "Visits when expanded",
     },
     pickCat: "Pick a cat in the card editor.",
     more: "Show more", less: "Show less", all: (n) => (n ? `Whole history (${n})` : "Whole history"),
@@ -50,6 +54,10 @@ const I18N = {
     partial: (c) => `Posible ${c} medio dentro, justo tras su visita`,
     noWeight: "Visita detectada sin peso",
     refill: "Probablemente relleno de arena o un gato medio dentro",
+    busy: "El arenero estaba moviendo la arena (limpiando, vaciando o nivelando)",
+    stayed: "Un gato estuvo demasiado tiempo: el arenero niveló la arena y reinició el peso",
+    health: { frequent_visits: (v) => `${v} visitas hoy, muchas más de lo habitual`, long_visit: (v) => `Visita de ${v} s, mucho más larga de lo habitual`,
+      weight_loss: (v) => `Ha perdido un ${v} % de peso en 3 semanas` },
     notFound: "No se encontró ningún arenero de Litter Cat Identifier.",
     days: (d) => `${d} días`,
     hide: "Ocultar no identificadas", show: (n) => `Mostrar no identificadas (${n} ocultas)`,
@@ -64,7 +72,7 @@ const I18N = {
       hour: "Hora", day: "Día", week: "Semana", month: "Mes", line: "Línea", bar: "Barras", mean: "Media", min: "Mínimo", max: "Máximo",
       show_title: "Mostrar título", cat: "Gato", cats: "Gatos a mostrar (vacío = todos)", layout: "Disposición", horizontal: "Horizontal", vertical: "Vertical",
       show_photo: "Mostrar foto", avatar_size: "Tamaño de la foto (px)", color: "Color del icono (si no hay foto)",
-      show_unidentified: "Mostrar visitas no identificadas", collapsible: "Lista desplegable", expanded_count: "Visitas al desplegar",
+      show_health: "Mostrar avisos de salud", show_unidentified: "Mostrar visitas no identificadas", collapsible: "Lista desplegable", expanded_count: "Visitas al desplegar",
     },
     pickCat: "Elige un gato en el editor de la tarjeta.",
     more: "Ver más", less: "Ver menos", all: (n) => (n ? `Todo el historial (${n})` : "Todo el historial"),
@@ -92,7 +100,7 @@ function findBox(hass, deviceId) {
   const byKey = (k) => mine.filter((e) => e.translation_key === k).map((e) => e.entity_id);
   const catOf = (id) => hass.states[id]?.attributes?.cat;
   const cats = {};
-  for (const [key, field] of [["cat_weight", "weight"], ["cat_visits_today", "visits"], ["cat_last_visit", "last"]]) {
+  for (const [key, field] of [["cat_weight", "weight"], ["cat_visits_today", "visits"], ["cat_last_visit", "last"], ["cat_health", "health"]]) {
     for (const id of byKey(key)) {
       const name = catOf(id);
       if (!name) continue;
@@ -154,6 +162,8 @@ const STYLE = `
   .lci-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
   .lci-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .lci-chip { padding: 4px 10px; border-radius: 16px; background: var(--secondary-background-color); font-size: .9em; }
+  .lci-health { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--error-color, #db4437); font-size: .85em; }
+  .lci-health ha-icon { --mdc-icon-size: 16px; flex: none; }
   .lci-foot { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
   .lci-scroll { max-height: 420px; overflow-y: auto; }
   .lci-chart-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -191,7 +201,7 @@ class BaseCard extends HTMLElement {
   get hass() { return this._hass; }
   signature(hass, box) {
     if (!box) return "none";
-    const ids = [box.lastVisit, box.unidentified, box.showSwitch, ...box.cats.flatMap((c) => [c.weight, c.visits, c.last])];
+    const ids = [box.lastVisit, box.unidentified, box.showSwitch, ...box.cats.flatMap((c) => [c.weight, c.visits, c.last, c.health])];
     return ids.map((id) => hass.states[id]?.last_updated).join("|") + (hass.locale?.language || "");
   }
   shell(title, body) {
@@ -274,6 +284,7 @@ const showSchema = () => [{ type: "grid", name: "", schema: [
   { name: "show_weight", selector: { boolean: {} }, default: true },
   { name: "show_visits", selector: { boolean: {} }, default: true },
   { name: "show_last", selector: { boolean: {} }, default: true },
+  { name: "show_health", selector: { boolean: {} }, default: true },
 ] }];
 
 /** One cat tile, shared by the Cats and Cat cards. */
@@ -285,13 +296,17 @@ function catTile(hass, T, c, cat) {
   const last = hass.states[cat.last]?.state;
   const lastTxt = last && !["unknown", "unavailable"].includes(last) ? `${T.last} ${fmtTime(hass, last)}` : T.never;
   const sub = [on(c.show_visits) ? T.today(esc(visits)) : null, on(c.show_last) ? lastTxt : null].filter(Boolean).join(" · ");
+  const hs = cat.health && hass.states[cat.health];
+  const alerts = hs?.state === "on" && on(c.show_health)
+    ? (hs.attributes.reasons || []).map((r) => T.health[r] ? T.health[r](hs.attributes[r]) : r) : [];
   const avatar = pic
     ? `<img class="lci-avatar" src="${esc(pic)}" alt="">`
     : `<div class="lci-avatar"><ha-icon icon="mdi:cat"></ha-icon></div>`;
   const style = [c.avatar_size ? `--lci-avatar:${Number(c.avatar_size)}px` : "", c.color ? `--lci-color:${esc(c.color)}` : ""].join(";");
   return `<div class="lci-cat ${c.layout === "vertical" ? "vertical" : ""}" style="${style}" data-entity="${esc(cat.weight)}">${avatar}
     <div style="min-width:0"><div class="lci-name">${esc(cat.name)}</div>
-    ${on(c.show_weight) ? `<div class="lci-kg">${kg}</div>` : ""}${sub ? `<div class="lci-sub">${sub}</div>` : ""}</div></div>`;
+    ${on(c.show_weight) ? `<div class="lci-kg">${kg}</div>` : ""}${sub ? `<div class="lci-sub">${sub}</div>` : ""}
+    ${alerts.map((a) => `<div class="lci-health"><ha-icon icon="mdi:heart-pulse"></ha-icon>${esc(a)}</div>`).join("")}</div></div>`;
 }
 
 /* ---------- cats ---------- */
@@ -408,7 +423,8 @@ class VisitsCard extends BaseCard {
       let cat = esc(v.cat);
       if (v.cat === "unidentified") {
         const tip = v.reason === "partial_after_visit" ? T.partial(v.likely_cat || "?")
-          : v.reason === "no_weight" ? T.noWeight : T.refill;
+          : v.reason === "no_weight" ? T.noWeight : v.reason === "device_busy" ? T.busy
+          : v.reason === "stayed_too_long" ? T.stayed : T.refill;
         cat = `${T.unidentified}<span class="q" title="${esc(tip)}">(?)</span>`;
       }
       const kg = typeof v.weight === "number" ? `${v.weight.toFixed(2)} kg` : "–";

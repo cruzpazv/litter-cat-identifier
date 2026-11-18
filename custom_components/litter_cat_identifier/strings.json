@@ -65,14 +65,16 @@
           "min_weight": "Ignore readings below",
           "notify_targets": "Send notifications to",
           "notify_unidentified": "Notify unidentified visits",
-          "record_unidentified": "Record unidentified readings"
+          "record_unidentified": "Record unidentified readings",
+          "notify_health": "Health alerts"
         },
         "data_description": {
           "tolerance": "Readings further than this from every cat are logged as unidentified.",
           "smoothing": "How much each visit moves the learned weight (0 = never, 1 = jump to the latest reading).",
           "min_weight": "Filters out empty-box readings and noise.",
           "notify_targets": "Notify services, e.g. notify.mobile_app_my_phone. Photos are attached on mobile app targets.",
-          "record_unidentified": "Off: readings that don't match any cat are ignored completely (no log, count, event or notification)."
+          "record_unidentified": "Off: readings that don't match any cat are ignored completely (no log, count, event or notification).",
+          "notify_health": "Notify when a cat visits much more than usual, stays far longer than usual, or loses 5 % of its weight in three weeks. The *health* binary sensors work either way."
         }
       },
       "cat_select": {
@@ -140,6 +142,11 @@
       "show_unidentified": {
         "name": "Show unidentified visits"
       }
+    },
+    "binary_sensor": {
+      "cat_health": {
+        "name": "{cat} health"
+      }
     }
   },
   "services": {
@@ -188,6 +195,12 @@
           "description": "Only needed with more than one litter box."
         }
       }
+    }
+  },
+  "issues": {
+    "live_scale": {
+      "title": "{name}: the weight sensor looks like a live scale",
+      "description": "Litter Cat Identifier reads the cat's weight from `{entity}`, but that sensor keeps dropping back to about 0 kg. A live scale gives partial weights while the cat leaves, so visits get the wrong cat.\n\nUse a sensor or event with the weight **of each visit**: Litter Cat Identifier → ⋮ → **Reconfigure**. Suggested visit event: `{suggestion}`."
     }
   }
 }

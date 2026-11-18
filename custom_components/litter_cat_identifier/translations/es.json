@@ -65,14 +65,16 @@
           "min_weight": "Ignorar lecturas por debajo de",
           "notify_targets": "Enviar notificaciones a",
           "notify_unidentified": "Avisar de visitas no identificadas",
-          "record_unidentified": "Registrar lecturas no identificadas"
+          "record_unidentified": "Registrar lecturas no identificadas",
+          "notify_health": "Avisos de salud"
         },
         "data_description": {
           "tolerance": "Las lecturas más alejadas que esto de todos los gatos se registran como no identificadas.",
           "smoothing": "Cuánto mueve cada visita el peso aprendido (0 = nunca, 1 = salta a la última lectura).",
           "min_weight": "Filtra lecturas con el arenero vacío y ruido.",
           "notify_targets": "Servicios notify, p. ej. notify.mobile_app_mi_movil. En la app móvil se adjunta la foto.",
-          "record_unidentified": "Desactivado: las lecturas que no coinciden con ningún gato se ignoran por completo (sin historial, contador, evento ni aviso)."
+          "record_unidentified": "Desactivado: las lecturas que no coinciden con ningún gato se ignoran por completo (sin historial, contador, evento ni aviso).",
+          "notify_health": "Avisar cuando un gato va mucho más de lo habitual, se queda mucho más tiempo de lo normal o pierde un 5 % de peso en tres semanas. Los sensores binarios de *salud* funcionan igualmente."
         }
       },
       "cat_select": {
@@ -140,6 +142,11 @@
       "show_unidentified": {
         "name": "Mostrar visitas no identificadas"
       }
+    },
+    "binary_sensor": {
+      "cat_health": {
+        "name": "Salud de {cat}"
+      }
     }
   },
   "services": {
@@ -188,6 +195,12 @@
           "description": "Solo necesario con más de un arenero."
         }
       }
+    }
+  },
+  "issues": {
+    "live_scale": {
+      "title": "{name}: el sensor de peso parece una báscula en tiempo real",
+      "description": "Litter Cat Identifier lee el peso del gato de `{entity}`, pero ese sensor vuelve una y otra vez a unos 0 kg. Una báscula en tiempo real da pesos parciales mientras el gato sale, así que las visitas se asignan al gato equivocado.\n\nUsa un sensor o un evento con el peso **de cada visita**: Litter Cat Identifier → ⋮ → **Reconfigurar**. Evento de visita sugerido: `{suggestion}`."
     }
   }
 }

@@ -8,7 +8,8 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_NAME
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
     EntitySelector,
@@ -35,6 +36,7 @@ from .const import (
     CONF_DURATION_ENTITY,
     CONF_MIN_WEIGHT,
     CONF_NOTIFY_TARGETS,
+    CONF_NOTIFY_HEALTH,
     CONF_NOTIFY_UNIDENTIFIED,
     CONF_NOTIFY_VISIT,
     CONF_RECORD_UNIDENTIFIED,
@@ -67,6 +69,30 @@ async def _resolve_picture(hass, user_input: dict[str, Any], current: str | None
         return await async_store_picture(hass, media["media_content_id"])
     typed = _picture(user_input.get(CONF_PICTURE))
     return typed if typed is not None else current
+
+
+def _uahpet_suggestion(hass: HomeAssistant) -> dict[str, Any]:
+    """Pre-fill the form from a UAHPET litter box that no entry uses yet."""
+    used = set()
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        used |= {entry.data.get(CONF_VISIT_ENTITY), entry.data.get(CONF_WEIGHT_ENTITY)}
+    by_device: dict[str, dict[str, str]] = {}
+    for ent in er.async_get(hass).entities.values():
+        if ent.platform == "uahpet" and ent.device_id and ent.translation_key in ("visit", "last_cat_weight", "last_visit_duration"):
+            by_device.setdefault(ent.device_id, {})[ent.translation_key] = ent.entity_id
+    for device_id, keys in by_device.items():
+        if "visit" not in keys or "last_cat_weight" not in keys or keys["visit"] in used:
+            continue
+        device = dr.async_get(hass).async_get(device_id)
+        out = {
+            CONF_NAME: (device.name_by_user or device.name) if device else DEFAULT_NAME,
+            CONF_WEIGHT_ENTITY: keys["last_cat_weight"],
+            CONF_VISIT_ENTITY: keys["visit"],
+        }
+        if "last_visit_duration" in keys:
+            out[CONF_DURATION_ENTITY] = keys["last_visit_duration"]
+        return out
+    return {}
 
 
 def _kg(min_v: float, max_v: float, step: float) -> NumberSelector:
@@ -103,6 +129,8 @@ class LitterCatConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_DURATION_ENTITY): SENSOR,
             }
         )
+        # A UAHPET litter box is recognised and its visit event / weight / duration filled in.
+        schema = self.add_suggested_values_to_schema(schema, _uahpet_suggestion(self.hass))
         return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_cat(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -217,6 +245,7 @@ class LitterCatOptionsFlow(OptionsFlow):
                 vol.Required(
                     CONF_NOTIFY_UNIDENTIFIED, default=opts.get(CONF_NOTIFY_UNIDENTIFIED, False)
                 ): BooleanSelector(),
+                vol.Required(CONF_NOTIFY_HEALTH, default=opts.get(CONF_NOTIFY_HEALTH, True)): BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="settings", data_schema=schema)

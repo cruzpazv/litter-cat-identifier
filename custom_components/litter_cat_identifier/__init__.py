@@ -29,7 +29,7 @@ from .coordinator import LitterCoordinator
 from .frontend import async_register_cards
 from .pictures import async_delete_pictures, async_register_static_path
 
-PLATFORMS = [Platform.BUTTON, Platform.EVENT, Platform.SENSOR, Platform.SWITCH]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.EVENT, Platform.SENSOR, Platform.SWITCH]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type LitterConfigEntry = ConfigEntry[LitterCoordinator]

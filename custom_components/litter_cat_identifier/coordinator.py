@@ -15,6 +15,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
     async_call_later,
@@ -34,6 +35,7 @@ from .const import (
     CONF_DURATION_ENTITY,
     CONF_MIN_WEIGHT,
     CONF_NOTIFY_TARGETS,
+    CONF_NOTIFY_HEALTH,
     CONF_NOTIFY_UNIDENTIFIED,
     CONF_NOTIFY_VISIT,
     CONF_RECORD_UNIDENTIFIED,
@@ -59,10 +61,16 @@ from .const import (
     WEIGHT_SETTLE,
     WEIGHT_WAIT,
 )
+from . import health
 from .logic import classify_unidentified, identify, learn, median, parse_float, to_kg
 from .messages import text
 
 _LOGGER = logging.getLogger(__name__)
+
+UAHPET = "uahpet"
+BUSY_STATES = ("cleaning", "clearing", "leveling")
+BUSY_WINDOW = 120  # s: readings right after the litter box moved the litter are not a cat
+LIVE_SCALE_DROPS = 3  # weight sensor fell back to ~0 this many times: it is a live scale
 
 
 def signal_update(entry_id: str) -> str:
@@ -93,6 +101,7 @@ class LitterCoordinator:
         self.min_weight = float(opts.get(CONF_MIN_WEIGHT, DEFAULT_MIN_WEIGHT))
         self.notify_targets: list[str] = list(opts.get(CONF_NOTIFY_TARGETS, []))
         self.notify_unidentified: bool = bool(opts.get(CONF_NOTIFY_UNIDENTIFIED, False))
+        self.notify_health: bool = bool(opts.get(CONF_NOTIFY_HEALTH, True))
         self.record_unidentified: bool = bool(opts.get(CONF_RECORD_UNIDENTIFIED, True))
         cat_opts = opts.get(CONF_CAT_OPTIONS, {})
         self.cat_settings: dict[str, dict[str, Any]] = {
@@ -111,6 +120,14 @@ class LitterCoordinator:
         self.alerted: dict[str, bool] = {}
         self.history: list[dict[str, Any]] = []
         self._day: str = ""
+        self.daily: dict[str, dict[str, int]] = {}  # day -> visits per cat (health baseline)
+        self.weights: dict[str, dict[str, float]] = {}  # day -> learned weight per cat
+        self.health: dict[str, dict[str, Any]] = {}  # cat -> active reason -> detail
+        # UAHPET litter box entities next to the visit / weight source (translation_key -> entity_id)
+        self.device_entities: dict[str, str] = {}
+        self._busy_at = None
+        self._weight_drops = 0
+        self._weight_above = False
 
         self._last_weight: float | None = None
         self._last_weight_at = None
@@ -132,6 +149,9 @@ class LitterCoordinator:
         self.last_visit = {n: data.get("last_visit", {}).get(n) for n in self.cat_names}
         self.alerted = {n: bool(data.get("alerted", {}).get(n, False)) for n in self.cat_names}
         self._day = data.get("day", "")
+        self.daily = data.get("daily", {})
+        self.weights = data.get("weights", {})
+        self.health = {n: dict(data.get("health", {}).get(n, {})) for n in self.cat_names}
         counts = data.get("visits_today", {})
         self.visits_today = {n: int(counts.get(n, 0)) for n in [*self.cat_names, UNIDENTIFIED]}
         if self._day != self._today():
@@ -148,12 +168,20 @@ class LitterCoordinator:
             "alerted": self.alerted,
             "history": self.history,
             "day": self._day,
+            "daily": self.daily,
+            "weights": self.weights,
+            "health": self.health,
         }
 
     # ---------- lifecycle ----------
 
     @callback
     def async_start(self) -> None:
+        self.device_entities = self._find_device_entities()
+        if status := self.device_entities.get("work_status"):
+            self._unsubs.append(async_track_state_change_event(self.hass, [status], self._on_device_status))
+        ir.async_delete_issue(self.hass, DOMAIN, self._live_scale_issue)
+        self._check_weight_loss()
         self._unsubs.append(
             async_track_state_change_event(self.hass, [self.weight_entity], self._on_weight)
         )
@@ -190,8 +218,115 @@ class LitterCoordinator:
         return dt_util.now().date().isoformat()
 
     def _reset_day(self) -> None:
+        if self._day and self.visits_today:
+            # keep each day's counts and weights: the baseline for health alerts
+            self.daily[self._day] = {n: self.visits_today.get(n, 0) for n in self.cat_names}
+            self.weights[self._day] = dict(self.learned)
+            today = dt_util.now().date()
+            health.trim(self.daily, today)
+            health.trim(self.weights, today)
         self._day = self._today()
         self.visits_today = {n: 0 for n in [*self.cat_names, UNIDENTIFIED]}
+        # daily signals end with the day; weight loss is re-evaluated
+        for cat in self.cat_names:
+            self.health.setdefault(cat, {}).pop("frequent_visits", None)
+            self.health[cat].pop("long_visit", None)
+        self._check_weight_loss()
+
+    # ---------- litter box context (UAHPET) ----------
+
+    def _find_device_entities(self) -> dict[str, str]:
+        """UAHPET entities on the same device as the visit / weight source."""
+        reg = er.async_get(self.hass)
+        for source in (self.visit_entity, self.weight_entity):
+            entry = reg.async_get(source) if source else None
+            if entry and entry.platform == UAHPET and entry.device_id:
+                return {
+                    e.translation_key: e.entity_id
+                    for e in er.async_entries_for_device(reg, entry.device_id)
+                    if e.platform == UAHPET and e.translation_key
+                }
+        return {}
+
+    @callback
+    def _on_device_status(self, event: Event[EventStateChangedData]) -> None:
+        new = event.data["new_state"]
+        if new is not None and new.state in BUSY_STATES:
+            self._busy_at = dt_util.utcnow()
+
+    def _device_reason(self) -> str | None:
+        """Why an unidentified reading is not a cat, from the litter box's own state."""
+        ents = self.device_entities
+        if not ents:
+            return None
+        stagnant = ents.get("stagnant") and self.hass.states.get(ents["stagnant"])
+        if stagnant and stagnant.state == "on":
+            return "stayed_too_long"
+        status = ents.get("work_status") and self.hass.states.get(ents["work_status"])
+        if status and status.state in BUSY_STATES:
+            return "device_busy"
+        if self._busy_at and (dt_util.utcnow() - self._busy_at).total_seconds() <= BUSY_WINDOW:
+            return "device_busy"
+        return None
+
+    # ---------- weight source check ----------
+
+    @property
+    def _live_scale_issue(self) -> str:
+        return f"live_scale_{self.entry.entry_id}"
+
+    def _check_live_scale(self, state) -> None:
+        """A weight sensor that keeps falling back to ~0 is a live scale: visits get partial weights."""
+        if self.visit_entity and self.visit_entity.startswith("event."):
+            return  # the event carries the weight; the sensor is only a fallback
+        value = parse_float(state.state) if state else None
+        if value is None:
+            return
+        above = to_kg(value, state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)) >= self.min_weight
+        if self._weight_above and not above:
+            self._weight_drops += 1
+            if self._weight_drops == LIVE_SCALE_DROPS:
+                suggestion = self.device_entities.get("visit") or self._find_device_entities().get("visit")
+                ir.async_create_issue(
+                    self.hass, DOMAIN, self._live_scale_issue, is_fixable=False, is_persistent=False,
+                    severity=ir.IssueSeverity.WARNING, translation_key="live_scale",
+                    translation_placeholders={"name": self.name, "entity": self.weight_entity, "suggestion": suggestion or "-"},
+                )
+        self._weight_above = above
+
+    # ---------- health ----------
+
+    def _check_weight_loss(self) -> None:
+        today = dt_util.now().date()
+        changed = False
+        for cat in self.cat_names:
+            snapshots = {d: w.get(cat) for d, w in self.weights.items() if w.get(cat)}
+            pct = health.weight_loss(self.learned.get(cat), snapshots, today)
+            active = self.health.setdefault(cat, {})
+            if pct is not None and "weight_loss" not in active:
+                active["weight_loss"] = pct
+                changed = True
+                self._notify_health(cat, "weight_loss", pct=pct)
+            elif pct is None and "weight_loss" in active:
+                del active["weight_loss"]
+                changed = True
+        if changed:
+            self._notify_entities()
+
+    def _check_visit_health(self, cat: str, duration: float | None) -> None:
+        active = self.health.setdefault(cat, {})
+        past_counts = [d.get(cat, 0) for d in self.daily.values()]
+        if "frequent_visits" not in active and health.frequent_visits(self.visits_today.get(cat, 0), past_counts):
+            active["frequent_visits"] = self.visits_today.get(cat, 0)
+            self._notify_health(cat, "frequent_visits", count=active["frequent_visits"])
+        past_durations = [v["duration"] for v in self.history[1:200] if v["cat"] == cat and v.get("duration")]
+        if "long_visit" not in active and health.long_visit(duration, past_durations):
+            active["long_visit"] = round(duration)
+            self._notify_health(cat, "long_visit", seconds=round(duration))
+
+    def _notify_health(self, cat: str, reason: str, **kwargs: Any) -> None:
+        if self.notify_health:
+            self._send(text(self.hass.config.language, f"health_{reason}", cat=cat, **kwargs), self.picture(cat))
 
     def _read_kg(self, state) -> float | None:
         if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
@@ -264,6 +399,7 @@ class LitterCoordinator:
 
     @callback
     def _on_weight(self, event: Event[EventStateChangedData]) -> None:
+        self._check_live_scale(event.data["new_state"])
         kg = self._read_kg(event.data["new_state"])
         if kg is None:
             return
@@ -357,6 +493,8 @@ class LitterCoordinator:
                 since = (now_dt - prev_dt).total_seconds()
             prev_cat = prev["cat"] if prev and prev["cat"] in self.cat_names else None
             reason, likely = classify_unidentified(kg, since, prev_cat, PARTIAL_WINDOW)
+            if device_reason := self._device_reason():
+                reason, likely = device_reason, None
         self.visits_today[key] = self.visits_today.get(key, 0) + 1
         if cat:
             self.last_visit[cat] = now
@@ -373,6 +511,8 @@ class LitterCoordinator:
             visit["likely_cat"] = likely
         self.history.insert(0, visit)
         del self.history[STORED_HISTORY:]
+        if cat:
+            self._check_visit_health(cat, visit["duration"])
 
         _LOGGER.debug("Visit recorded: %s", visit)
         self._save()

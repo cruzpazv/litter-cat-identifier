@@ -17,7 +17,7 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - Names each visit after the right cat, or logs it as **unidentified**
 - **Learns** each cat's weight over time (cats gain and lose weight; the reference follows them)
 - Per cat: learned weight (long-term statistics → trend graphs), visits today, last visit
-- Visit log of the last 20 visits (time, cat, weight, duration)
+- Visit log (up to 2000 visits; the sensor shows the latest 20, cards and the websocket API the rest)
 - An **event entity** per litter box → automations like "notify if Luna hasn't visited in 24 h" or "Simba visited 6 times today"
 - **Photo per cat** shown on all of that cat's entities
 - **Notifications** from the UI: every visit, unidentified visits, or "no visit in X hours" per cat (photo attached on the HA mobile app)
@@ -26,7 +26,21 @@ Home Assistant integration that tells your cats apart by weight on any automatic
 - Hide unidentified readings in the visits card, clear them with one button, or don't record them at all
 - **Ready-made dashboard cards** with visual editors: one cat or several, recent visits, weight history and litter box controls (clean now)
 - Service to fix a misidentified visit
+- **Health alerts per cat**: many more visits than usual, a much longer visit than usual, or 5 % weight lost in three weeks (binary sensor per cat + optional notification)
+- **Repairs** warning when the weight sensor looks like a live scale (it gives partial weights and the wrong cat)
+- **UAHPET litter boxes** are recognised: the setup form fills itself in, and unidentified readings are explained with the litter box's state
 - No cloud, no dependencies, config flow UI, English + Spanish
+
+## Card previews
+
+<table>
+<tr><td><img src="docs/images/cats.png" alt="Cats card" width="380"><br><b>Cats</b>: weight, visits today, last visit and health alerts</td>
+<td><img src="docs/images/visits-chart.png" alt="Visits per day card" width="380"><br><b>Visits per day</b>: one bar per cat</td></tr>
+<tr><td><img src="docs/images/visits.png" alt="Recent visits card" width="380"><br><b>Recent visits</b> as a collapsible list (expanded)</td>
+<td><img src="docs/images/cat.png" alt="Cat card" width="380"><br><b>Cat</b>: a single cat<br><br><img src="docs/images/box.png" alt="Litter box card" width="380"><br><b>Litter box</b>: clean now, auto clean, today</td></tr>
+</table>
+
+Rendered from the real cards with sample data. The *Weight* card is Home Assistant's own statistics graph.
 
 ## How it works
 
@@ -69,7 +83,7 @@ The weight sensor must hold the weight **of the visit**. A live scale (e.g. the 
 
 **Options** (⚙ on the integration):
 
-- *General settings & notifications*: tolerance, learning rate, minimum weight, record unidentified readings (on/off), notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits.
+- *General settings & notifications*: tolerance, learning rate, minimum weight, record unidentified readings (on/off), notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits, health alerts (on by default).
 - *Cat: photo & notifications*: photo, notify every visit, alert after N hours without a visit (0 = off; one alert until the cat visits again).
 
 **Photos**: in *Cat: photo & notifications*, tap **Photo** to pick an image from Media or upload one straight from your phone or computer. It's cropped square, resized to 512 px and stored by the integration — no File editor, no paths. Advanced: you can still type a `/local/...` path or an `https://` URL instead.
@@ -85,6 +99,7 @@ For a litter box named *Litter box* with cats *Luna* and *Simba*:
 | `sensor.litter_box_luna_weight` | Learned weight (kg) |
 | `sensor.litter_box_luna_visits_today` | Visits today (resets at midnight) |
 | `sensor.litter_box_luna_last_visit` | Timestamp of last visit |
+| `binary_sensor.litter_box_luna_health` | On when a health signal is active; attribute `reasons` (`frequent_visits`, `long_visit`, `weight_loss`) with details. Needs about a week of history first |
 | `event.litter_box_visit` | Fires per visit; `event_type` = cat name or `unidentified` |
 | `switch.litter_box_show_unidentified_visits` | Show/hide unidentified readings in the *Recent visits* card (nothing is deleted) |
 | `button.litter_box_clear_unidentified_visits` | Removes unidentified readings from the log and resets today's count |
