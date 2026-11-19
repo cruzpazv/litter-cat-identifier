@@ -65,6 +65,7 @@ from .const import (
 from . import health
 from .logic import classify_unidentified, identify, learn, median, parse_float, to_kg
 from .messages import text
+from .pictures import REFRESH_EVERY, picture_url
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -144,7 +145,8 @@ class LitterCoordinator:
         return "#{:02x}{:02x}{:02x}".format(*rgb) if rgb and len(rgb) == 3 else None
 
     def picture(self, cat: str | None) -> str | None:
-        return self.cat_settings.get(cat, {}).get(CONF_PICTURE) if cat else None
+        """Photo URL for entities and notifications (our own photos come signed)."""
+        return picture_url(self.hass, self.cat_settings.get(cat, {}).get(CONF_PICTURE)) if cat else None
 
     # ---------- persistence ----------
 
@@ -199,6 +201,11 @@ class LitterCoordinator:
         self._unsubs.append(
             async_track_time_change(self.hass, self._on_midnight, hour=0, minute=0, second=0)
         )
+        if any(s[CONF_PICTURE] for s in self.cat_settings.values()):
+            # signed photo URLs expire: let entities pick up a fresh one in time
+            self._unsubs.append(
+                async_track_time_interval(self.hass, self._refresh_pictures, REFRESH_EVERY)
+            )
         if any(s[CONF_ALERT_HOURS] for s in self.cat_settings.values()):
             self._unsubs.append(
                 async_track_time_interval(
@@ -349,6 +356,10 @@ class LitterCoordinator:
             return None
         state = self.hass.states.get(self.duration_entity)
         return parse_float(state.state) if state else None
+
+    @callback
+    def _refresh_pictures(self, _now) -> None:
+        self._notify_entities()
 
     def _notify_entities(self) -> None:
         async_dispatcher_send(self.hass, signal_update(self.entry.entry_id))

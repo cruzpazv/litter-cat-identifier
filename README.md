@@ -60,8 +60,12 @@ Works best when the cats differ by at least ~1 kg. With closer weights, lower th
 
 ## Install
 
-**HACS (custom repository)**
-HACS → ⋮ → Custom repositories → `https://github.com/cruzpazv/litter-cat-identifier` → type *Integration* → Download → restart Home Assistant.
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=cruzpazv&repository=litter-cat-identifier&category=integration)
+
+**HACS**
+HACS → search for **Litter Cat Identifier** → Download → restart Home Assistant.
+
+*Not listed yet?* The button above adds it for you, or add it as a custom repository: HACS → ⋮ → Custom repositories → `https://github.com/cruzpazv/litter-cat-identifier` → type *Integration*.
 
 **Manual**
 Copy `custom_components/litter_cat_identifier` into your `config/custom_components/` and restart.
@@ -86,7 +90,7 @@ The weight sensor must hold the weight **of the visit**. A live scale (e.g. the 
 - *General settings & notifications*: tolerance, learning rate, minimum weight, record unidentified readings (on/off), notify services (e.g. `notify.mobile_app_my_phone`), notify unidentified visits, health alerts (on by default).
 - *Cat: photo & notifications*: photo, notify every visit, alert after N hours without a visit (0 = off; one alert until the cat visits again).
 
-**Photos**: in *Cat: photo & notifications*, tap **Photo** to pick an image from Media or upload one straight from your phone or computer. It's cropped square, resized to 512 px and stored by the integration — no File editor, no paths. Advanced: you can still type a `/local/...` path or an `https://` URL instead.
+**Photos**: in *Cat: photo & notifications*, tap **Photo** to pick an image from Media or upload one straight from your phone or computer. It's cropped square, resized to 512 px and stored by the integration — no File editor, no paths. Stored photos are only served to logged-in users (entities hand out short-lived signed links, like cameras do). Advanced: you can still type a `/local/...` path or an `https://` URL instead (note that `/local/` files are public to anyone who can reach Home Assistant).
 
 ## Entities
 

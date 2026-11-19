@@ -27,7 +27,7 @@ from .const import (
 )
 from .coordinator import LitterCoordinator
 from .frontend import async_register_cards
-from .pictures import async_delete_pictures, async_register_static_path
+from .pictures import async_delete_pictures, async_register_view
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.EVENT, Platform.SENSOR, Platform.SWITCH]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -87,7 +87,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     hass.services.async_register(DOMAIN, SERVICE_CLEAR_UNIDENTIFIED, _clear, schema=CLEAR_SCHEMA)
     websocket_api.async_register_command(hass, ws_history)
-    await async_register_static_path(hass)
+    await async_register_view(hass)
     await async_register_cards(hass)
     return True
 

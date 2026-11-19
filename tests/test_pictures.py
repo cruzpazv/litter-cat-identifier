@@ -1,11 +1,13 @@
+from datetime import timedelta
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.setup import async_setup_component
 from PIL import Image
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from custom_components.litter_cat_identifier.pictures import URL_PREFIX, owned_file
+from custom_components.litter_cat_identifier.pictures import LEGACY_PREFIX, URL_PREFIX, owned_file, picture_url
 
 from .test_integration import _setup
 
@@ -18,7 +20,7 @@ async def _edit_cat(hass, entry, data):
     return await hass.config_entries.options.async_configure(r["flow_id"], {**base, **data})
 
 
-async def test_pick_photo_from_media(hass: HomeAssistant, tmp_path: Path, hass_client):
+async def test_pick_photo_from_media(hass: HomeAssistant, tmp_path: Path, hass_client, hass_client_no_auth, freezer):
     media = tmp_path / "media"
     media.mkdir()
     Image.new("RGB", (1200, 800), (200, 120, 40)).save(media / "luna.png")
@@ -38,9 +40,26 @@ async def test_pick_photo_from_media(hass: HomeAssistant, tmp_path: Path, hass_c
     first = owned_file(hass, url)
     with Image.open(first) as img:
         assert img.size == (512, 512)
-    client = await hass_client()
-    resp = await client.get(url)
-    assert resp.status == 200
+    assert "authSig=" in url  # handed out signed
+    # logged in or signed: served; neither (or a guessed / bad name): refused
+    assert (await (await hass_client()).get(url.split("?")[0])).status == 200
+    anon = await hass_client_no_auth()
+    assert (await anon.get(url)).status == 200
+    assert (await anon.get(url.split("?")[0])).status == 401
+    assert (await anon.get(f"{LEGACY_PREFIX}/{first.name}")).status == 404  # the old static path is gone
+    assert (await (await hass_client()).get(f"{URL_PREFIX}/000000000000.jpg")).status == 404
+    # the same signed URL is reused (no state churn), and stored legacy URLs still map to the file
+    assert picture_url(hass, url.split("?")[0]) == url
+    assert picture_url(hass, f"{LEGACY_PREFIX}/{first.name}?v=1") == url
+    # signed URLs expire after 2 days: entities hand out a fresh one in time
+    freezer.tick(timedelta(days=1, hours=7))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    fresh = hass.states.get("sensor.taco_luna_weight").attributes["entity_picture"]
+    assert fresh != url
+    freezer.tick(timedelta(hours=18))
+    assert (await anon.get(url)).status == 401
+    assert (await anon.get(fresh)).status == 200
 
     # a non-image is rejected with a form error, nothing changes
     r = await _edit_cat(hass, entry, {"picture_media": {
@@ -68,4 +87,6 @@ async def test_pick_photo_from_media(hass: HomeAssistant, tmp_path: Path, hass_c
 
 def test_owned_file_rejects_traversal(hass: HomeAssistant):
     assert owned_file(hass, f"{URL_PREFIX}/../secrets.yaml") is None
+    assert owned_file(hass, f"{LEGACY_PREFIX}/..%2Fsecrets.yaml") is None
     assert owned_file(hass, "/local/x.jpg") is None
+    assert picture_url(hass, "/local/x.jpg") == "/local/x.jpg"
