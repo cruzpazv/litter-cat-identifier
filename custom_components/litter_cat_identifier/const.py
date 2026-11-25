@@ -14,7 +14,7 @@ CONF_SMOOTHING = "smoothing"
 CONF_MIN_WEIGHT = "min_weight"
 
 DEFAULT_NAME = "Litter box"
-DEFAULT_TOLERANCE = 1.0  # kg
+DEFAULT_TOLERANCE = 0.5  # kg
 DEFAULT_SMOOTHING = 0.2  # share of each new reading folded into the learned weight
 DEFAULT_MIN_WEIGHT = 1.0  # kg
 
@@ -52,7 +52,8 @@ SERVICE_CLEAR_UNIDENTIFIED = "clear_unidentified_visits"
 ATTR_WEIGHT = "weight"
 ATTR_SAMPLES = "samples"
 
-PARTIAL_WINDOW = 60  # s after a cat's visit: an unidentified reading is probably that cat half-in
+LEARN_SAMPLES = 5  # learn towards the median of the latest readings: one odd reading does not drag the weight
+PARTIAL_WINDOW = 120  # s after a cat's visit: an unidentified reading is probably that cat half-in
 RECALIBRATE_SAMPLES = 5
 REASON_PARTIAL = "partial_after_visit"
 REASON_REFILL = "refill_or_partial"

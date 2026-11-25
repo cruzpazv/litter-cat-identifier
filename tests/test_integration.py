@@ -206,16 +206,16 @@ async def test_unidentified_reasons(hass: HomeAssistant, freezer):
 
 async def test_recalibrate(hass: HomeAssistant):
     await _setup(hass)
-    for i, kg in enumerate((4.30, 4.40, 4.35, 9.0, 4.45), start=1):
+    for i, kg in enumerate((4.10, 4.20, 4.15, 9.0, 4.25), start=1):
         await _visit(hass, kg, i)
     # Luna learned slowly from 3.8; recalibrating jumps to the median of her readings
     btn = "button.taco_recalibrate_luna_weight"
     assert hass.states.get(btn) is not None
     await hass.services.async_call("button", "press", {"entity_id": btn}, blocking=True)
-    assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(4.375)
+    assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(4.175)
 
     await hass.services.async_call(DOMAIN, "recalibrate_weight", {"cat": "Luna", "samples": 2}, blocking=True)
-    assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(4.40)
+    assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(4.20)
 
     await hass.services.async_call(DOMAIN, "recalibrate_weight", {"cat": "Simba", "weight": 5.8}, blocking=True)
     assert float(hass.states.get("sensor.taco_simba_weight").state) == pytest.approx(5.8)
@@ -397,3 +397,15 @@ async def test_history_websocket(hass: HomeAssistant, hass_ws_client):
     assert [v["cat"] for v in res["result"]["history"]] == ["Luna", "Simba", "Luna"]  # visits 5, 4, 3
     await client.send_json({"id": 3, "type": f"{DOMAIN}/history", "device_id": "nope"})
     assert (await client.receive_json())["error"]["code"] == "not_found"
+
+
+async def test_half_inside_after_heavier_cat(hass: HomeAssistant):
+    await _setup(hass)
+    await _visit(hass, 5.5, 1)  # Simba
+    await _visit(hass, 3.4, 2)  # near Luna, but right after Simba and much lighter: Simba half inside
+    last = hass.states.get("sensor.taco_last_visit")
+    assert last.state == "unidentified" and last.attributes["reason"] == "partial_after_visit"
+    assert last.attributes["likely_cat"] == "Simba"
+    assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(3.8)
+    await _visit(hass, 3.8, 3)  # Luna herself right after: still Luna
+    assert hass.states.get("sensor.taco_last_visit").state == "Luna"

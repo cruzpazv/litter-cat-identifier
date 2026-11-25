@@ -51,6 +51,24 @@ def learn(current: float, reading: float, smoothing: float) -> float:
     return current * (1.0 - smoothing) + reading * smoothing
 
 
+def half_inside(
+    weight: float,
+    cat_weight: float,
+    tolerance: float,
+    previous: dict | None,
+    seconds_since_previous: float | None,
+    window: float,
+) -> str | None:
+    """A reading well under the matched cat's weight right after a heavier cat's visit is that
+    cat stepping back in with half its body (e.g. to cover its waste). Returns that cat."""
+    if not previous or seconds_since_previous is None or not 0 <= seconds_since_previous <= window:
+        return None
+    prev_weight = previous.get("weight")
+    if prev_weight is None or weight >= prev_weight or weight >= cat_weight - tolerance / 2:
+        return None
+    return previous["cat"]
+
+
 def median(values: list[float]) -> float:
     ordered = sorted(values)
     n = len(ordered)

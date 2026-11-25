@@ -69,8 +69,8 @@
           "notify_health": "Avisos de salud"
         },
         "data_description": {
-          "tolerance": "Las lecturas más alejadas que esto de todos los gatos se registran como no identificadas.",
-          "smoothing": "Cuánto mueve cada visita el peso aprendido (0 = nunca, 1 = salta a la última lectura).",
+          "tolerance": "Las lecturas más alejadas que esto de todos los gatos se registran como no identificadas (0,5 kg por defecto). Una lectura más ligera justo después de la visita de un gato más pesado se toma como ese gato medio dentro.",
+          "smoothing": "Cuánto mueve cada visita el peso aprendido (0 = nunca, 1 = salta a la lectura). Se mueve hacia la mediana de las últimas lecturas: una lectura rara no lo arrastra.",
           "min_weight": "Filtra lecturas con el arenero vacío y ruido.",
           "notify_targets": "Servicios notify, p. ej. notify.mobile_app_mi_movil. En la app móvil se adjunta la foto.",
           "record_unidentified": "Desactivado: las lecturas que no coinciden con ningún gato se ignoran por completo (sin historial, contador, evento ni aviso).",

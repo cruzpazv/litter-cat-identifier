@@ -66,3 +66,12 @@ def test_median():
 )
 def test_classify(weight, since, prev, expected):
     assert logic.classify_unidentified(weight, since, prev, 60) == expected
+
+
+def test_half_inside_after_a_heavier_cat():
+    half_inside = logic.half_inside
+    mochi = {"cat": "Mochi", "weight": 6.0}
+    assert half_inside(3.25, 3.6, 0.5, mochi, 60, 120) == "Mochi"  # Mochi covering its waste
+    assert half_inside(3.6, 3.6, 0.5, mochi, 60, 120) is None  # Pudin at its usual weight
+    assert half_inside(3.25, 3.6, 0.5, mochi, 300, 120) is None  # long after: Pudin
+    assert half_inside(3.25, 3.6, 0.5, {"cat": "Mochi", "weight": 3.0}, 60, 120) is None  # previous cat lighter

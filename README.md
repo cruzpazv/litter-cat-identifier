@@ -46,8 +46,9 @@ Rendered from the real cards with sample data. The *Weight* card is Home Assista
 
 1. Your litter box integration reports a weight (and ideally a visit counter).
 2. On every visit, the reading is matched to the cat with the closest learned weight.
-3. If it's within the tolerance (default 1 kg), the visit is assigned and that cat's learned weight moves a bit towards the new reading (default 20 %).
+3. If it's within the tolerance (default 0.5 kg), the visit is assigned and that cat's learned weight moves a bit (default 20 %) towards the median of its latest 5 readings, so one odd reading does not drag it.
 4. Otherwise it's logged as unidentified.
+5. A reading well under the matched cat's weight within 2 minutes after a heavier cat's visit is logged as unidentified, *probably that cat half inside* (e.g. stepping back in to cover its waste).
 
 **Visit detection**
 
@@ -56,7 +57,7 @@ Rendered from the real cards with sample data. The *Weight* card is Home Assista
 | Counter (recommended) | Visit counter sensor increases | Catches every visit. Uses the current weight, or the last one seen in the past 10 min. |
 | Weight only | Weight sensor changes and stays stable for 60 s | Two consecutive visits with exactly the same weight count as one (HA only reports changes). |
 
-Works best when the cats differ by at least ~1 kg. With closer weights, lower the tolerance and expect some unidentified visits.
+Works best when the cats differ by at least ~1 kg. With closer weights, lower the tolerance further and expect some unidentified visits.
 
 ## Install
 

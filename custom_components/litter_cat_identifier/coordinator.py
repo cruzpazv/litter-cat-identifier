@@ -52,7 +52,9 @@ from .const import (
     DOMAIN,
     STORED_HISTORY,
     INACTIVITY_CHECK,
+    LEARN_SAMPLES,
     PARTIAL_WINDOW,
+    REASON_PARTIAL,
     RECALIBRATE_SAMPLES,
     STORAGE_VERSION,
     UNIDENTIFIED,
@@ -63,7 +65,7 @@ from .const import (
     WEIGHT_WAIT,
 )
 from . import health
-from .logic import classify_unidentified, identify, learn, median, parse_float, to_kg
+from .logic import classify_unidentified, half_inside, identify, learn, median, parse_float, to_kg
 from .messages import text
 from .pictures import REFRESH_EVERY, picture_url
 
@@ -492,24 +494,34 @@ class LitterCoordinator:
         if self._day != self._today():
             self._reset_day()
 
+        now_dt = dt_util.now()
+        now = now_dt.isoformat()
+        prev = self.history[0] if self.history else None
+        since = None
+        if prev and (prev_dt := dt_util.parse_datetime(prev["time"])):
+            since = (now_dt - prev_dt).total_seconds()
+        prev_cat = prev["cat"] if prev and prev["cat"] in self.cat_names else None
+
         cat = identify(kg, self.learned, self.tolerance) if kg is not None else None
+        partial_of = None
+        if cat is not None and prev_cat not in (None, cat):
+            partial_of = half_inside(kg, self.learned[cat], self.tolerance, prev, since, PARTIAL_WINDOW)
+            if partial_of:
+                cat = None  # lighter than the cat, right after a heavier cat's visit
         if cat is None and not self.record_unidentified:
             _LOGGER.debug("Ignoring unidentified reading %s (recording disabled)", kg)
             return
         if cat is not None and kg is not None:
-            self.learned[cat] = round(learn(self.learned[cat], kg, self.smoothing), 3)
+            recent = [v["weight"] for v in self.history if v["cat"] == cat and v.get("weight") is not None]
+            typical = median([kg, *recent[: LEARN_SAMPLES - 1]])
+            self.learned[cat] = round(learn(self.learned[cat], typical, self.smoothing), 3)
 
         key = cat or UNIDENTIFIED
-        now_dt = dt_util.now()
-        now = now_dt.isoformat()
 
         reason = likely = None
-        if not cat:
-            prev = self.history[0] if self.history else None
-            since = None
-            if prev and (prev_dt := dt_util.parse_datetime(prev["time"])):
-                since = (now_dt - prev_dt).total_seconds()
-            prev_cat = prev["cat"] if prev and prev["cat"] in self.cat_names else None
+        if partial_of:
+            reason, likely = REASON_PARTIAL, partial_of
+        elif not cat:
             reason, likely = classify_unidentified(kg, since, prev_cat, PARTIAL_WINDOW)
             if device_reason := self._device_reason():
                 reason, likely = device_reason, None
