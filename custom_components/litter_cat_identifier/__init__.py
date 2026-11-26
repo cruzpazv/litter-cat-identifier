@@ -7,7 +7,7 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.typing import ConfigType
@@ -23,9 +23,11 @@ from .const import (
     RECALIBRATE_SAMPLES,
     SERVICE_REASSIGN,
     SERVICE_CLEAR_UNIDENTIFIED,
+    SERVICE_EXPORT,
     SERVICE_RECALIBRATE,
 )
 from .coordinator import LitterCoordinator
+from .export import async_export
 from .frontend import async_register_cards
 from .pictures import async_delete_pictures, async_register_view
 
@@ -41,6 +43,7 @@ REASSIGN_SCHEMA = vol.Schema(
     }
 )
 CLEAR_SCHEMA = vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string})
+EXPORT_SCHEMA = vol.Schema({vol.Required(ATTR_CONFIG_ENTRY_ID): cv.string})
 RECALIBRATE_SCHEMA = REASSIGN_SCHEMA.extend(
     {
         vol.Optional(ATTR_WEIGHT): vol.All(vol.Coerce(float), vol.Range(min=0.3, max=20)),
@@ -86,6 +89,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         _coordinator(call).clear_unidentified()
 
     hass.services.async_register(DOMAIN, SERVICE_CLEAR_UNIDENTIFIED, _clear, schema=CLEAR_SCHEMA)
+
+    async def _export(call: ServiceCall) -> ServiceResponse:
+        entry = hass.config_entries.async_get_entry(call.data[ATTR_CONFIG_ENTRY_ID])
+        if entry is None or entry.domain != DOMAIN:
+            raise ServiceValidationError("Litter box not found")
+        return await async_export(hass, entry)
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPORT, _export, schema=EXPORT_SCHEMA, supports_response=SupportsResponse.ONLY
+    )
     websocket_api.async_register_command(hass, ws_history)
     await async_register_view(hass)
     await async_register_cards(hass)

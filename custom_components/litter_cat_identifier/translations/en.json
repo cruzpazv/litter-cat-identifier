@@ -196,6 +196,16 @@
           "description": "Only needed with more than one litter box."
         }
       }
+    },
+    "export_data": {
+      "name": "Export data",
+      "description": "Return the cats, learned weights, settings and visit history of a litter box (used by UAHPET to import them).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Litter box",
+          "description": "The litter box to export."
+        }
+      }
     }
   },
   "issues": {

@@ -41,6 +41,11 @@ async def test_pick_photo_from_media(hass: HomeAssistant, tmp_path: Path, hass_c
     with Image.open(first) as img:
         assert img.size == (512, 512)
     assert "authSig=" in url  # handed out signed
+    exported = await hass.services.async_call(
+        "litter_cat_identifier", "export_data", {"config_entry_id": entry.entry_id}, blocking=True, return_response=True
+    )
+    luna = next(c for c in exported["cats"] if c["name"] == "Luna")
+    assert luna["picture_file"] == str(first) and luna["picture"] is None
     # logged in or signed: served; neither (or a guessed / bad name): refused
     assert (await (await hass_client()).get(url.split("?")[0])).status == 200
     anon = await hass_client_no_auth()

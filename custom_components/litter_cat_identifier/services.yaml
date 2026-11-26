@@ -49,3 +49,11 @@ clear_unidentified_visits:
       selector:
         config_entry:
           integration: litter_cat_identifier
+
+export_data:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: litter_cat_identifier

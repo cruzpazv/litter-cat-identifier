@@ -196,6 +196,16 @@
           "description": "Solo necesario con más de un arenero."
         }
       }
+    },
+    "export_data": {
+      "name": "Exportar datos",
+      "description": "Devuelve los gatos, pesos aprendidos, ajustes e historial de visitas de un arenero (UAHPET lo usa para importarlos).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Arenero",
+          "description": "El arenero que se exporta."
+        }
+      }
     }
   },
   "issues": {

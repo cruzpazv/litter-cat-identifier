@@ -49,6 +49,7 @@ STORAGE_VERSION = 1
 SERVICE_REASSIGN = "reassign_last_visit"
 SERVICE_RECALIBRATE = "recalibrate_weight"
 SERVICE_CLEAR_UNIDENTIFIED = "clear_unidentified_visits"
+SERVICE_EXPORT = "export_data"
 ATTR_WEIGHT = "weight"
 ATTR_SAMPLES = "samples"
 

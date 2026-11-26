@@ -409,3 +409,27 @@ async def test_half_inside_after_heavier_cat(hass: HomeAssistant):
     assert float(hass.states.get("sensor.taco_luna_weight").state) == pytest.approx(3.8)
     await _visit(hass, 3.8, 3)  # Luna herself right after: still Luna
     assert hass.states.get("sensor.taco_last_visit").state == "Luna"
+
+
+async def test_export_data(hass: HomeAssistant):
+    entry = await _setup(hass)
+    await _visit(hass, 3.9, 1)
+    res = await hass.services.async_call(
+        DOMAIN, "export_data", {"config_entry_id": entry.entry_id}, blocking=True, return_response=True
+    )
+    assert res["version"] == 1 and res["name"] == "TACo"
+    luna = next(c for c in res["cats"] if c["name"] == "Luna")
+    assert luna["initial_weight"] == 3.8 and 3.8 < luna["weight"] < 3.9 and luna["picture_file"] is None
+    assert res["settings"]["tolerance"] == 0.5
+    assert res["state"]["history"][0]["cat"] == "Luna" and res["state"]["visits_today"]["Luna"] == 1
+
+    # also while the entry is not loaded (read from its storage)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    res = await hass.services.async_call(
+        DOMAIN, "export_data", {"config_entry_id": entry.entry_id}, blocking=True, return_response=True
+    )
+    assert res["state"]["history"][0]["cat"] == "Luna"
+
+    from homeassistant.exceptions import ServiceValidationError
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "export_data", {"config_entry_id": "nope"}, blocking=True, return_response=True)

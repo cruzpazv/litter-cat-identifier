@@ -143,6 +143,8 @@ data:
 
 `litter_cat_identifier.clear_unidentified_visits` — removes unidentified readings from the visit log and resets today's count.
 
+`litter_cat_identifier.export_data` — returns one litter box's cats (learned weight, photo, colour, notifications), settings and visit history as a response (`config_entry_id` required). It's the stable format other integrations import from (UAHPET's *Import from Litter Cat Identifier* uses it).
+
 ## Custom automations
 
 Built-in notifications cover the common cases. For anything else, use the event entity or the timestamps, e.g.:
